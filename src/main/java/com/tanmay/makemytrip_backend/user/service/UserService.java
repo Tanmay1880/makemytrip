@@ -7,35 +7,41 @@ import com.tanmay.makemytrip_backend.user.entity.UserRole;
 import com.tanmay.makemytrip_backend.user.mapper.UserMapper;
 import com.tanmay.makemytrip_backend.user.repository.UserRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import com.tanmay.makemytrip_backend.user.exception.UserAlreadyExistsException;
 
-import java.time.LocalDateTime;
 
 @Service
 public class UserService {
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final PasswordEncoder passwordEncoder;
 
     public UserService(
             UserRepository userRepository,
-            UserMapper userMapper) {
+            UserMapper userMapper,
+            PasswordEncoder passwordEncoder) {
 
         this.userRepository = userRepository;
         this.userMapper = userMapper;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public UserResponse createUser(UserRequest request) {
 
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new UserAlreadyExistsException(
+                    "User with this email already exists"
+            );
+        }
+
         User user = userMapper.toEntity(request);
 
         // Business rules
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole(UserRole.USER);
         user.setActive(true);
-
-        LocalDateTime now = LocalDateTime.now();
-        user.setCreatedAt(now);
-        user.setUpdatedAt(now);
-
         User savedUser = userRepository.save(user);
 
         return userMapper.toResponse(savedUser);
