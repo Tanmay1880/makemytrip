@@ -12,6 +12,8 @@ import java.time.LocalDateTime;
 @RestControllerAdvice(assignableTypes = UserController.class)
 public class UserExceptionHandler {
 
+    // ==================== USER NOT FOUND ====================
+
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<ApiErrorResponse> handleUserNotFound(
             UserNotFoundException exception) {
@@ -27,6 +29,8 @@ public class UserExceptionHandler {
                 .status(HttpStatus.NOT_FOUND)
                 .body(response);
     }
+
+    // ==================== USER ALREADY EXISTS ====================
 
     @ExceptionHandler(UserAlreadyExistsException.class)
     public ResponseEntity<ApiErrorResponse> handleUserAlreadyExists(

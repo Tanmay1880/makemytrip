@@ -2,27 +2,31 @@ package com.tanmay.makemytrip_backend.user.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.EnumType;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
-import java.time.LocalDateTime;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-import jakarta.persistence.EntityListeners;
+
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users")
 @EntityListeners(AuditingEntityListener.class)
 public class User {
 
+    // ==================== ID ====================
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    // ==================== PROFILE ====================
 
     @Column(name = "first_name")
     private String firstName;
@@ -33,15 +37,24 @@ public class User {
     @Column(name = "email", nullable = false, unique = true)
     private String email;
 
-    @Column(name = "password")
-    private String password;
-
     @Column(name = "phone_number")
     private String phoneNumber;
+
+    // ==================== SECURITY ====================
+
+    @Column(name = "password")
+    private String password;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false)
     private UserRole role;
+
+    // ==================== ACCOUNT STATUS ====================
+
+    @Column(name = "active")
+    private Boolean active;
+
+    // ==================== AUDITING ====================
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -51,10 +64,9 @@ public class User {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    @Column(name = "active")
-    private Boolean active;
+    // ==================== CONSTRUCTORS ====================
 
-    //Constructor
+    // Required by JPA
     protected User() {
     }
 
@@ -72,7 +84,7 @@ public class User {
         this.phoneNumber = phoneNumber;
     }
 
-    // Getter
+    // ==================== GETTERS ====================
 
     public Long getId() {
         return id;
@@ -90,16 +102,20 @@ public class User {
         return email;
     }
 
-    public String getPassword() {
-        return password;
-    }
-
     public String getPhoneNumber() {
         return phoneNumber;
     }
 
+    public String getPassword() {
+        return password;
+    }
+
     public UserRole getRole() {
         return role;
+    }
+
+    public Boolean getActive() {
+        return active;
     }
 
     public LocalDateTime getCreatedAt() {
@@ -110,16 +126,7 @@ public class User {
         return updatedAt;
     }
 
-    public Boolean getActive() {
-        return active;
-    }
-
-    // Setter
-
-
-    public void setId(Long id) {
-        this.id = id;
-    }
+    // ==================== SETTERS ====================
 
     public void setFirstName(String firstName) {
         this.firstName = firstName;
@@ -133,24 +140,16 @@ public class User {
         this.email = email;
     }
 
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
     public void setPhoneNumber(String phoneNumber) {
         this.phoneNumber = phoneNumber;
     }
 
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
     public void setRole(UserRole role) {
         this.role = role;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
     }
 
     public void setActive(Boolean active) {

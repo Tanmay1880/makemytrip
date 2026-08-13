@@ -4,13 +4,20 @@ import com.tanmay.makemytrip_backend.user.entity.UserRole;
 
 public class UserResponse {
 
+    // ==================== USER INFORMATION ====================
+
     private final Long id;
     private final String firstName;
     private final String lastName;
     private final String email;
     private final String phoneNumber;
+
+    // ==================== ACCOUNT INFORMATION ====================
+
     private final UserRole role;
     private final Boolean active;
+
+    // ==================== CONSTRUCTOR ====================
 
     public UserResponse(
             Long id,
@@ -30,8 +37,7 @@ public class UserResponse {
         this.active = active;
     }
 
-
-    // Getters
+    // ==================== GETTERS ====================
 
     public Long getId() {
         return id;
@@ -60,5 +66,4 @@ public class UserResponse {
     public Boolean getActive() {
         return active;
     }
-
 }
