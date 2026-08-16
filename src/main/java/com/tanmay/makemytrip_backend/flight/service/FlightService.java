@@ -6,6 +6,7 @@ import com.tanmay.makemytrip_backend.airline.repository.AirlineRepository;
 import com.tanmay.makemytrip_backend.airport.entity.Airport;
 import com.tanmay.makemytrip_backend.airport.exception.AirportNotFoundException;
 import com.tanmay.makemytrip_backend.airport.repository.AirportRepository;
+import com.tanmay.makemytrip_backend.booking.entity.SeatClass;
 import com.tanmay.makemytrip_backend.flight.dto.FlightRequest;
 import com.tanmay.makemytrip_backend.flight.dto.FlightResponse;
 import com.tanmay.makemytrip_backend.flight.entity.Flight;
@@ -15,6 +16,7 @@ import com.tanmay.makemytrip_backend.flight.exception.InvalidFlightException;
 import com.tanmay.makemytrip_backend.flight.mapper.FlightMapper;
 import com.tanmay.makemytrip_backend.flight.repository.FlightRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -211,6 +213,89 @@ public class FlightService {
 
         // Soft delete: preserve flights referenced by bookings.
         flight.setActive(false);
+
+        flightRepository.save(flight);
+    }
+
+    // ==================== RESERVE SEATS ====================
+
+    @Transactional
+    public void reserveSeats(
+            Long flightId,
+            SeatClass seatClass,
+            int passengerCount) {
+
+        Flight flight = flightRepository.findById(flightId)
+                .orElseThrow(() ->
+                        new FlightNotFoundException(
+                                "Flight not found with id: " + flightId
+                        )
+                );
+
+        if (!Boolean.TRUE.equals(flight.getActive())) {
+            throw new InvalidFlightException(
+                    "Cannot reserve seats on an inactive flight"
+            );
+        }
+
+        if (passengerCount <= 0) {
+            throw new InvalidFlightException(
+                    "Passenger count must be greater than 0"
+            );
+        }
+
+        switch (seatClass) {
+
+            case ECONOMY -> {
+
+                if (flight.getEconomySeatsAvailable() < passengerCount) {
+                    throw new InvalidFlightException(
+                            "Not enough economy seats available"
+                    );
+                }
+
+                flight.setEconomySeatsAvailable(
+                        flight.getEconomySeatsAvailable()
+                                - passengerCount
+                );
+            }
+
+            case PREMIUM_ECONOMY -> {
+
+                if (flight.getPremiumEconomySeatsAvailable()
+                        < passengerCount) {
+
+                    throw new InvalidFlightException(
+                            "Not enough premium economy seats available"
+                    );
+                }
+
+                flight.setPremiumEconomySeatsAvailable(
+                        flight.getPremiumEconomySeatsAvailable()
+                                - passengerCount
+                );
+            }
+
+            case BUSINESS -> {
+
+                if (flight.getBusinessSeatsAvailable()
+                        < passengerCount) {
+
+                    throw new InvalidFlightException(
+                            "Not enough business seats available"
+                    );
+                }
+
+                flight.setBusinessSeatsAvailable(
+                        flight.getBusinessSeatsAvailable()
+                                - passengerCount
+                );
+            }
+
+            default -> throw new InvalidFlightException(
+                    "Invalid seat class"
+            );
+        }
 
         flightRepository.save(flight);
     }
