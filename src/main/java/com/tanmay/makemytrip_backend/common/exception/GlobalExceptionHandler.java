@@ -1,6 +1,7 @@
 package com.tanmay.makemytrip_backend.common.exception;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -20,7 +21,7 @@ public class GlobalExceptionHandler {
      * Returns the validation error for each invalid field.
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ApiErrorResponse handleValidation(
+    public ResponseEntity<ApiErrorResponse> handleValidation(
             MethodArgumentNotValidException exception) {
 
         Map<String, String> errors = new HashMap<>();
@@ -34,11 +35,15 @@ public class GlobalExceptionHandler {
                         )
                 );
 
-        return new ApiErrorResponse(
+        ApiErrorResponse response = new ApiErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
                 "Validation failed",
                 LocalDateTime.now(),
                 errors
         );
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(response);
     }
 }
