@@ -1,25 +1,28 @@
 package com.tanmay.makemytrip_backend.booking.service;
 
-import com.tanmay.makemytrip_backend.booking.exception.BookingNotFoundException;
-import com.tanmay.makemytrip_backend.booking.mapper.BookingMapper;
-import com.tanmay.makemytrip_backend.booking.repository.BookingRepository;
-import com.tanmay.makemytrip_backend.flight.repository.FlightRepository;
-import com.tanmay.makemytrip_backend.user.repository.UserRepository;
-import org.springframework.stereotype.Service;
 import com.tanmay.makemytrip_backend.booking.dto.BookingRequest;
 import com.tanmay.makemytrip_backend.booking.dto.BookingResponse;
+import com.tanmay.makemytrip_backend.booking.entity.Booking;
+import com.tanmay.makemytrip_backend.booking.entity.BookingStatus;
+import com.tanmay.makemytrip_backend.booking.exception.BookingNotFoundException;
 import com.tanmay.makemytrip_backend.booking.exception.InvalidBookingException;
-import com.tanmay.makemytrip_backend.user.entity.User;
-import com.tanmay.makemytrip_backend.user.exception.UserNotFoundException;
+import com.tanmay.makemytrip_backend.booking.mapper.BookingMapper;
+import com.tanmay.makemytrip_backend.booking.repository.BookingRepository;
 import com.tanmay.makemytrip_backend.flight.entity.Flight;
 import com.tanmay.makemytrip_backend.flight.exception.FlightNotFoundException;
+import com.tanmay.makemytrip_backend.flight.repository.FlightRepository;
+import com.tanmay.makemytrip_backend.flight.service.FlightService;
+import com.tanmay.makemytrip_backend.passenger.repository.PassengerRepository;
+import com.tanmay.makemytrip_backend.user.entity.User;
+import com.tanmay.makemytrip_backend.user.exception.UserNotFoundException;
+import com.tanmay.makemytrip_backend.user.repository.UserRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
-import com.tanmay.makemytrip_backend.booking.entity.Booking;
-import com.tanmay.makemytrip_backend.booking.entity.BookingStatus;
-
 
 @Service
 public class BookingService {
@@ -28,18 +31,26 @@ public class BookingService {
     private final BookingMapper bookingMapper;
     private final UserRepository userRepository;
     private final FlightRepository flightRepository;
+    private final PassengerRepository passengerRepository;
+    private final FlightService flightService;
 
     public BookingService(
             BookingRepository bookingRepository,
             BookingMapper bookingMapper,
             UserRepository userRepository,
-            FlightRepository flightRepository) {
+            FlightRepository flightRepository,
+            PassengerRepository passengerRepository,
+            FlightService flightService) {
 
         this.bookingRepository = bookingRepository;
         this.bookingMapper = bookingMapper;
         this.userRepository = userRepository;
         this.flightRepository = flightRepository;
+        this.passengerRepository = passengerRepository;
+        this.flightService = flightService;
     }
+
+    // ==================== CREATE ====================
 
     public BookingResponse createBooking(BookingRequest request) {
 
@@ -60,7 +71,9 @@ public class BookingService {
 
         // ==================== FLIGHT VALIDATION ====================
 
-        Flight flight = flightRepository.findByIdAndActiveTrue(request.getFlightId())
+        Flight flight = flightRepository.findByIdAndActiveTrue(
+                        request.getFlightId()
+                )
                 .orElseThrow(() ->
                         new FlightNotFoundException(
                                 "Active flight not found with id: "
@@ -68,22 +81,25 @@ public class BookingService {
                         )
                 );
 
-        // ==================== SEAT & PRICE ====================
+        // ==================== SEAT AVAILABILITY ====================
 
         int availableSeats;
 
         switch (request.getSeatClass()) {
 
             case ECONOMY -> {
-                availableSeats = flight.getEconomySeatsAvailable();
+                availableSeats =
+                        flight.getEconomySeatsAvailable();
             }
 
             case PREMIUM_ECONOMY -> {
-                availableSeats = flight.getPremiumEconomySeatsAvailable();
+                availableSeats =
+                        flight.getPremiumEconomySeatsAvailable();
             }
 
             case BUSINESS -> {
-                availableSeats = flight.getBusinessSeatsAvailable();
+                availableSeats =
+                        flight.getBusinessSeatsAvailable();
             }
 
             default -> throw new InvalidBookingException(
@@ -137,7 +153,7 @@ public class BookingService {
         return bookingMapper.toResponse(booking);
     }
 
-// ==================== GET ALL ====================
+    // ==================== GET ALL ====================
 
     public List<BookingResponse> getAllBookings() {
 
@@ -147,7 +163,85 @@ public class BookingService {
                 .toList();
     }
 
+    // ==================== CANCEL ====================
 
+    @Transactional
+    public BookingResponse cancelBooking(Long bookingId) {
+
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() ->
+                        new BookingNotFoundException(
+                                "Booking not found with id: " + bookingId
+                        )
+                );
+
+        // ==================== STATUS VALIDATION ====================
+
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
+            throw new InvalidBookingException(
+                    "Booking is already cancelled"
+            );
+        }
+
+        if (booking.getStatus() == BookingStatus.EXPIRED) {
+            throw new InvalidBookingException(
+                    "Expired booking cannot be cancelled"
+            );
+        }
+
+        // ==================== RELEASE SEATS ====================
+
+        if (booking.getStatus() == BookingStatus.CONFIRMED) {
+
+            long passengerCount =
+                    passengerRepository.countByBookingId(
+                            booking.getId()
+                    );
+
+            if (passengerCount == 0) {
+                throw new InvalidBookingException(
+                        "Confirmed booking has no passengers"
+                );
+            }
+
+            flightService.releaseSeats(
+                    booking.getFlight().getId(),
+                    booking.getSeatClass(),
+                    (int) passengerCount
+            );
+        }
+
+        // ==================== CANCEL BOOKING ====================
+
+        booking.setStatus(BookingStatus.CANCELLED);
+        booking.setCancelledAt(LocalDateTime.now());
+
+        Booking cancelledBooking =
+                bookingRepository.save(booking);
+
+        return bookingMapper.toResponse(cancelledBooking);
+    }
+
+    // ==================== EXPIRE PENDING BOOKINGS ====================
+
+    @Transactional
+    public void expirePendingBookings() {
+
+        List<Booking> expiredBookings =
+                bookingRepository.findByStatusAndExpiresAtBefore(
+                        BookingStatus.PENDING,
+                        LocalDateTime.now()
+                );
+
+        for (Booking booking : expiredBookings) {
+
+            booking.setStatus(BookingStatus.EXPIRED);
+        }
+
+        bookingRepository.saveAll(expiredBookings);
+    }
+
+    // ==================== PNR ====================
 
     private String generatePnr() {
 

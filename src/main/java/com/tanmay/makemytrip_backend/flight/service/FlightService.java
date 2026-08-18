@@ -300,6 +300,49 @@ public class FlightService {
         flightRepository.save(flight);
     }
 
+    // ==================== RELEASE SEATS ====================
+
+    @Transactional
+    public void releaseSeats(
+            Long flightId,
+            SeatClass seatClass,
+            int passengerCount) {
+
+        Flight flight = flightRepository.findById(flightId)
+                .orElseThrow(() ->
+                        new FlightNotFoundException(
+                                "Flight not found with id: " + flightId
+                        )
+                );
+
+        if (passengerCount <= 0) {
+            throw new InvalidFlightException(
+                    "Passenger count must be greater than 0"
+            );
+        }
+
+        switch (seatClass) {
+
+            case ECONOMY -> flight.setEconomySeatsAvailable(
+                    flight.getEconomySeatsAvailable() + passengerCount
+            );
+
+            case PREMIUM_ECONOMY -> flight.setPremiumEconomySeatsAvailable(
+                    flight.getPremiumEconomySeatsAvailable() + passengerCount
+            );
+
+            case BUSINESS -> flight.setBusinessSeatsAvailable(
+                    flight.getBusinessSeatsAvailable() + passengerCount
+            );
+
+            default -> throw new InvalidFlightException(
+                    "Invalid seat class"
+            );
+        }
+
+        flightRepository.save(flight);
+    }
+
     // ==================== VALIDATION ====================
 
     private void validateFlightSchedule(FlightRequest request) {

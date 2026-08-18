@@ -64,6 +64,8 @@ public class PaymentService {
             );
         }
 
+        validateBookingNotExpired(booking);
+
         // ==================== PASSENGER VALIDATION ====================
 
         long passengerCount =
@@ -170,6 +172,10 @@ public class PaymentService {
             );
         }
 
+        // ==================== BOOKING EXPIRATION ====================
+
+        validateBookingNotExpired(booking);
+
         // ==================== PASSENGER VALIDATION ====================
 
         long passengerCount =
@@ -197,6 +203,7 @@ public class PaymentService {
         // ==================== BOOKING CONFIRMATION ====================
 
         booking.setStatus(BookingStatus.CONFIRMED);
+        booking.setTotalAmount(payment.getAmount());
 
         Payment savedPayment = paymentRepository.save(payment);
 
@@ -215,5 +222,16 @@ public class PaymentService {
                         .replace("-", "")
                         .substring(0, 12)
                         .toUpperCase();
+    }
+
+    // ==================== EXPIRATION VALIDATION ====================
+
+    private void validateBookingNotExpired(Booking booking) {
+
+        if (!booking.getExpiresAt().isAfter(LocalDateTime.now())) {
+            throw new InvalidPaymentException(
+                    "Booking has expired"
+            );
+        }
     }
 }
