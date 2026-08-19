@@ -13,6 +13,7 @@ import com.tanmay.makemytrip_backend.flight.exception.FlightNotFoundException;
 import com.tanmay.makemytrip_backend.flight.repository.FlightRepository;
 import com.tanmay.makemytrip_backend.flight.service.FlightService;
 import com.tanmay.makemytrip_backend.passenger.repository.PassengerRepository;
+import com.tanmay.makemytrip_backend.payment.service.PaymentService;
 import com.tanmay.makemytrip_backend.user.entity.User;
 import com.tanmay.makemytrip_backend.user.exception.UserNotFoundException;
 import com.tanmay.makemytrip_backend.user.repository.UserRepository;
@@ -33,6 +34,7 @@ public class BookingService {
     private final FlightRepository flightRepository;
     private final PassengerRepository passengerRepository;
     private final FlightService flightService;
+    private final PaymentService paymentService;
 
     public BookingService(
             BookingRepository bookingRepository,
@@ -40,7 +42,8 @@ public class BookingService {
             UserRepository userRepository,
             FlightRepository flightRepository,
             PassengerRepository passengerRepository,
-            FlightService flightService) {
+            FlightService flightService,
+            PaymentService paymentService) {
 
         this.bookingRepository = bookingRepository;
         this.bookingMapper = bookingMapper;
@@ -48,6 +51,7 @@ public class BookingService {
         this.flightRepository = flightRepository;
         this.passengerRepository = passengerRepository;
         this.flightService = flightService;
+        this.paymentService = paymentService;
     }
 
     // ==================== CREATE ====================
@@ -189,7 +193,7 @@ public class BookingService {
             );
         }
 
-        // ==================== RELEASE SEATS ====================
+        // ==================== CONFIRMED BOOKING ====================
 
         if (booking.getStatus() == BookingStatus.CONFIRMED) {
 
@@ -204,11 +208,17 @@ public class BookingService {
                 );
             }
 
+            // ==================== RELEASE SEATS ====================
+
             flightService.releaseSeats(
                     booking.getFlight().getId(),
                     booking.getSeatClass(),
                     (int) passengerCount
             );
+
+            // ==================== REFUND PAYMENT ====================
+
+            paymentService.refundPayment(booking.getId());
         }
 
         // ==================== CANCEL BOOKING ====================
@@ -234,7 +244,6 @@ public class BookingService {
                 );
 
         for (Booking booking : expiredBookings) {
-
             booking.setStatus(BookingStatus.EXPIRED);
         }
 

@@ -12,6 +12,8 @@ import com.tanmay.makemytrip_backend.payment.dto.PaymentResponse;
 import com.tanmay.makemytrip_backend.payment.entity.Payment;
 import com.tanmay.makemytrip_backend.payment.entity.PaymentStatus;
 import com.tanmay.makemytrip_backend.payment.exception.InvalidPaymentException;
+import com.tanmay.makemytrip_backend.payment.gateway.PaymentGateway;
+import com.tanmay.makemytrip_backend.payment.gateway.PaymentResult;
 import com.tanmay.makemytrip_backend.payment.mapper.PaymentMapper;
 import com.tanmay.makemytrip_backend.payment.repository.PaymentRepository;
 import org.springframework.stereotype.Service;
@@ -29,19 +31,22 @@ public class PaymentService {
     private final BookingRepository bookingRepository;
     private final PassengerRepository passengerRepository;
     private final FlightService flightService;
+    private final PaymentGateway paymentGateway;
 
     public PaymentService(
             PaymentRepository paymentRepository,
             PaymentMapper paymentMapper,
             BookingRepository bookingRepository,
             PassengerRepository passengerRepository,
-            FlightService flightService) {
+            FlightService flightService,
+            PaymentGateway paymentGateway) {
 
         this.paymentRepository = paymentRepository;
         this.paymentMapper = paymentMapper;
         this.bookingRepository = bookingRepository;
         this.passengerRepository = passengerRepository;
         this.flightService = flightService;
+        this.paymentGateway = paymentGateway;
     }
 
     // ==================== CREATE PAYMENT ====================
@@ -187,6 +192,21 @@ public class PaymentService {
             );
         }
 
+        // ==================== PAYMENT GATEWAY ====================
+
+        PaymentResult paymentResult =
+                paymentGateway.processPayment(payment.getAmount());
+
+        if (paymentResult == PaymentResult.FAILED) {
+
+            payment.setStatus(PaymentStatus.FAILED);
+            payment.setProcessedAt(LocalDateTime.now());
+
+            Payment failedPayment = paymentRepository.save(payment);
+
+            return paymentMapper.toResponse(failedPayment);
+        }
+
         // ==================== RESERVE SEATS ====================
 
         flightService.reserveSeats(
@@ -233,5 +253,28 @@ public class PaymentService {
                     "Booking has expired"
             );
         }
+    }
+
+    // ==================== REFUND PAYMENT ====================
+
+    @Transactional
+    public void refundPayment(Long bookingId) {
+
+        Payment payment =
+                paymentRepository.findByBookingIdAndStatus(
+                                bookingId,
+                                PaymentStatus.SUCCESS
+                        )
+                        .orElseThrow(() ->
+                                new InvalidPaymentException(
+                                        "No successful payment found for booking id: "
+                                                + bookingId
+                                )
+                        );
+
+        payment.setStatus(PaymentStatus.REFUNDED);
+        payment.setProcessedAt(LocalDateTime.now());
+
+        paymentRepository.save(payment);
     }
 }
