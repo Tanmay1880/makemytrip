@@ -56,6 +56,7 @@ public class BookingService {
 
     // ==================== CREATE ====================
 
+    @Transactional
     public BookingResponse createBooking(BookingRequest request) {
 
         // ==================== USER VALIDATION ====================

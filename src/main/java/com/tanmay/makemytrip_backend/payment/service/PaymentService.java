@@ -51,6 +51,7 @@ public class PaymentService {
 
     // ==================== CREATE PAYMENT ====================
 
+    @Transactional
     public PaymentResponse createPayment(PaymentRequest request) {
 
         // ==================== BOOKING VALIDATION ====================
