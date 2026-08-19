@@ -6,6 +6,7 @@ import com.tanmay.makemytrip_backend.airline.repository.AirlineRepository;
 import com.tanmay.makemytrip_backend.airport.entity.Airport;
 import com.tanmay.makemytrip_backend.airport.exception.AirportNotFoundException;
 import com.tanmay.makemytrip_backend.airport.repository.AirportRepository;
+import com.tanmay.makemytrip_backend.booking.entity.SeatClass;
 import com.tanmay.makemytrip_backend.flight.dto.FlightRequest;
 import com.tanmay.makemytrip_backend.flight.dto.FlightResponse;
 import com.tanmay.makemytrip_backend.flight.dto.FlightUpdateRequest;
@@ -361,7 +362,7 @@ public class FlightService {
     @Transactional
     public void reserveSeats(
             Long flightId,
-            com.tanmay.makemytrip_backend.booking.entity.SeatClass seatClass,
+            SeatClass seatClass,
             int passengerCount) {
 
         if (passengerCount <= 0) {
@@ -378,60 +379,19 @@ public class FlightService {
                         )
                 );
 
-        switch (seatClass) {
+        int availableSeats =
+                flight.getAvailableSeats(seatClass);
 
-            case ECONOMY -> {
-
-                if (flight.getEconomySeatsAvailable()
-                        < passengerCount) {
-
-                    throw new InvalidFlightException(
-                            "Not enough ECONOMY seats available"
-                    );
-                }
-
-                flight.setEconomySeatsAvailable(
-                        flight.getEconomySeatsAvailable()
-                                - passengerCount
-                );
-            }
-
-            case PREMIUM_ECONOMY -> {
-
-                if (flight.getPremiumEconomySeatsAvailable()
-                        < passengerCount) {
-
-                    throw new InvalidFlightException(
-                            "Not enough PREMIUM_ECONOMY seats available"
-                    );
-                }
-
-                flight.setPremiumEconomySeatsAvailable(
-                        flight.getPremiumEconomySeatsAvailable()
-                                - passengerCount
-                );
-            }
-
-            case BUSINESS -> {
-
-                if (flight.getBusinessSeatsAvailable()
-                        < passengerCount) {
-
-                    throw new InvalidFlightException(
-                            "Not enough BUSINESS seats available"
-                    );
-                }
-
-                flight.setBusinessSeatsAvailable(
-                        flight.getBusinessSeatsAvailable()
-                                - passengerCount
-                );
-            }
-
-            default -> throw new InvalidFlightException(
-                    "Invalid seat class"
+        if (availableSeats < passengerCount) {
+            throw new InvalidFlightException(
+                    "Not enough " + seatClass + " seats available"
             );
         }
+
+        flight.adjustSeats(
+                seatClass,
+                -passengerCount
+        );
 
         flightRepository.save(flight);
     }
@@ -441,7 +401,7 @@ public class FlightService {
     @Transactional
     public void releaseSeats(
             Long flightId,
-            com.tanmay.makemytrip_backend.booking.entity.SeatClass seatClass,
+            SeatClass seatClass,
             int passengerCount) {
 
         if (passengerCount <= 0) {
@@ -457,27 +417,10 @@ public class FlightService {
                         )
                 );
 
-        switch (seatClass) {
-
-            case ECONOMY -> flight.setEconomySeatsAvailable(
-                    flight.getEconomySeatsAvailable()
-                            + passengerCount
-            );
-
-            case PREMIUM_ECONOMY -> flight.setPremiumEconomySeatsAvailable(
-                    flight.getPremiumEconomySeatsAvailable()
-                            + passengerCount
-            );
-
-            case BUSINESS -> flight.setBusinessSeatsAvailable(
-                    flight.getBusinessSeatsAvailable()
-                            + passengerCount
-            );
-
-            default -> throw new InvalidFlightException(
-                    "Invalid seat class"
-            );
-        }
+        flight.adjustSeats(
+                seatClass,
+                passengerCount
+        );
 
         flightRepository.save(flight);
     }

@@ -89,7 +89,7 @@ class PaymentServiceTest {
         when(booking.getSeatClass())
                 .thenReturn(SeatClass.BUSINESS);
 
-        when(flight.getBusinessPrice())
+        when(flight.getPrice(SeatClass.BUSINESS))
                 .thenReturn(new BigDecimal("1500.00"));
 
         when(passengerRepository.countByBookingId(10L))
@@ -254,7 +254,7 @@ class PaymentServiceTest {
         when(booking.getSeatClass())
                 .thenReturn(SeatClass.ECONOMY);
 
-        when(flight.getEconomyPrice())
+        when(flight.getPrice(SeatClass.ECONOMY))
                 .thenReturn(new BigDecimal("500.00"));
 
         when(passengerRepository.countByBookingId(10L))

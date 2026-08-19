@@ -2,6 +2,7 @@ package com.tanmay.makemytrip_backend.flight.entity;
 
 import com.tanmay.makemytrip_backend.airline.entity.Airline;
 import com.tanmay.makemytrip_backend.airport.entity.Airport;
+import com.tanmay.makemytrip_backend.booking.entity.SeatClass;
 import jakarta.persistence.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -189,6 +190,40 @@ public class Flight {
 
     public LocalDateTime getUpdatedAt() {
         return updatedAt;
+    }
+
+    // ==================== SEAT CLASS OPERATIONS ====================
+
+    public Integer getAvailableSeats(SeatClass seatClass) {
+
+        return switch (seatClass) {
+            case ECONOMY -> economySeatsAvailable;
+            case PREMIUM_ECONOMY -> premiumEconomySeatsAvailable;
+            case BUSINESS -> businessSeatsAvailable;
+        };
+    }
+
+    public BigDecimal getPrice(SeatClass seatClass) {
+
+        return switch (seatClass) {
+            case ECONOMY -> economyPrice;
+            case PREMIUM_ECONOMY -> premiumEconomyPrice;
+            case BUSINESS -> businessPrice;
+        };
+    }
+
+    public void adjustSeats(SeatClass seatClass, int delta) {
+
+        switch (seatClass) {
+            case ECONOMY ->
+                    economySeatsAvailable += delta;
+
+            case PREMIUM_ECONOMY ->
+                    premiumEconomySeatsAvailable += delta;
+
+            case BUSINESS ->
+                    businessSeatsAvailable += delta;
+        }
     }
 
     // ==================== SETTERS ====================

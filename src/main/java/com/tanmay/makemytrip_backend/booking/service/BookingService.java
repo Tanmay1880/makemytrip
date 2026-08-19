@@ -87,29 +87,8 @@ public class BookingService {
 
         // ==================== SEAT AVAILABILITY ====================
 
-        int availableSeats;
-
-        switch (request.getSeatClass()) {
-
-            case ECONOMY -> {
-                availableSeats =
-                        flight.getEconomySeatsAvailable();
-            }
-
-            case PREMIUM_ECONOMY -> {
-                availableSeats =
-                        flight.getPremiumEconomySeatsAvailable();
-            }
-
-            case BUSINESS -> {
-                availableSeats =
-                        flight.getBusinessSeatsAvailable();
-            }
-
-            default -> throw new InvalidBookingException(
-                    "Invalid seat class"
-            );
-        }
+        int availableSeats =
+                flight.getAvailableSeats(request.getSeatClass());
 
         if (availableSeats <= 0) {
             throw new InvalidBookingException(

@@ -88,26 +88,8 @@ public class PaymentService {
 
         // ==================== GET PRICE ====================
 
-        BigDecimal pricePerPassenger;
-
-        switch (booking.getSeatClass()) {
-
-            case ECONOMY -> {
-                pricePerPassenger = flight.getEconomyPrice();
-            }
-
-            case PREMIUM_ECONOMY -> {
-                pricePerPassenger = flight.getPremiumEconomyPrice();
-            }
-
-            case BUSINESS -> {
-                pricePerPassenger = flight.getBusinessPrice();
-            }
-
-            default -> throw new InvalidPaymentException(
-                    "Invalid seat class"
-            );
-        }
+        BigDecimal pricePerPassenger =
+                flight.getPrice(booking.getSeatClass());
 
         // ==================== CALCULATE TOTAL ====================
 

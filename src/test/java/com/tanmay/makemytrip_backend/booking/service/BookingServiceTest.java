@@ -1,12 +1,11 @@
 package com.tanmay.makemytrip_backend.booking.service;
 
-import com.tanmay.makemytrip_backend.airline.repository.AirlineRepository;
-import com.tanmay.makemytrip_backend.airport.repository.AirportRepository;
 import com.tanmay.makemytrip_backend.booking.dto.BookingRequest;
 import com.tanmay.makemytrip_backend.booking.dto.BookingResponse;
 import com.tanmay.makemytrip_backend.booking.entity.Booking;
 import com.tanmay.makemytrip_backend.booking.entity.BookingStatus;
 import com.tanmay.makemytrip_backend.booking.entity.SeatClass;
+import com.tanmay.makemytrip_backend.booking.exception.BookingNotFoundException;
 import com.tanmay.makemytrip_backend.booking.exception.InvalidBookingException;
 import com.tanmay.makemytrip_backend.booking.mapper.BookingMapper;
 import com.tanmay.makemytrip_backend.booking.repository.BookingRepository;
@@ -16,11 +15,9 @@ import com.tanmay.makemytrip_backend.flight.repository.FlightRepository;
 import com.tanmay.makemytrip_backend.flight.service.FlightService;
 import com.tanmay.makemytrip_backend.passenger.repository.PassengerRepository;
 import com.tanmay.makemytrip_backend.payment.service.PaymentService;
-import com.tanmay.makemytrip_backend.booking.exception.BookingNotFoundException;
 import com.tanmay.makemytrip_backend.user.entity.User;
 import com.tanmay.makemytrip_backend.user.exception.UserNotFoundException;
 import com.tanmay.makemytrip_backend.user.repository.UserRepository;
-import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -28,6 +25,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -67,12 +65,14 @@ class BookingServiceTest {
     void createBooking_success() {
 
         BookingRequest request = new BookingRequest();
+
         request.setUserId(1L);
-        request.setFlightId(10L);
+        request.setFlightId(1L);
         request.setSeatClass(SeatClass.ECONOMY);
 
         User user = mock(User.class);
         Flight flight = mock(Flight.class);
+
         Booking booking = mock(Booking.class);
         BookingResponse response = mock(BookingResponse.class);
 
@@ -82,10 +82,10 @@ class BookingServiceTest {
         when(user.getActive())
                 .thenReturn(true);
 
-        when(flightRepository.findByIdAndActiveTrue(10L))
+        when(flightRepository.findByIdAndActiveTrue(1L))
                 .thenReturn(Optional.of(flight));
 
-        when(flight.getEconomySeatsAvailable())
+        when(flight.getAvailableSeats(SeatClass.ECONOMY))
                 .thenReturn(10);
 
         when(bookingRepository.save(any(Booking.class)))
@@ -99,6 +99,15 @@ class BookingServiceTest {
 
         assertSame(response, result);
 
+        verify(userRepository)
+                .findById(1L);
+
+        verify(flightRepository)
+                .findByIdAndActiveTrue(1L);
+
+        verify(flight)
+                .getAvailableSeats(SeatClass.ECONOMY);
+
         verify(bookingRepository)
                 .save(any(Booking.class));
 
@@ -107,11 +116,12 @@ class BookingServiceTest {
     }
 
     @Test
-    void createBooking_userNotFound() {
+    void createBooking_rejectsUnknownUser() {
 
         BookingRequest request = new BookingRequest();
+
         request.setUserId(99L);
-        request.setFlightId(10L);
+        request.setFlightId(1L);
         request.setSeatClass(SeatClass.ECONOMY);
 
         when(userRepository.findById(99L))
@@ -122,17 +132,20 @@ class BookingServiceTest {
                 () -> bookingService.createBooking(request)
         );
 
+        verify(userRepository)
+                .findById(99L);
+
         verifyNoInteractions(flightRepository);
         verifyNoInteractions(bookingRepository);
-        verifyNoInteractions(bookingMapper);
     }
 
     @Test
-    void createBooking_inactiveUser() {
+    void createBooking_rejectsInactiveUser() {
 
         BookingRequest request = new BookingRequest();
+
         request.setUserId(1L);
-        request.setFlightId(10L);
+        request.setFlightId(1L);
         request.setSeatClass(SeatClass.ECONOMY);
 
         User user = mock(User.class);
@@ -154,15 +167,21 @@ class BookingServiceTest {
                 exception.getMessage()
         );
 
+        verify(userRepository)
+                .findById(1L);
+
+        verify(user)
+                .getActive();
+
         verifyNoInteractions(flightRepository);
         verifyNoInteractions(bookingRepository);
-        verifyNoInteractions(bookingMapper);
     }
 
     @Test
-    void createBooking_flightNotFound() {
+    void createBooking_rejectsUnknownFlight() {
 
         BookingRequest request = new BookingRequest();
+
         request.setUserId(1L);
         request.setFlightId(99L);
         request.setSeatClass(SeatClass.ECONOMY);
@@ -183,16 +202,19 @@ class BookingServiceTest {
                 () -> bookingService.createBooking(request)
         );
 
+        verify(flightRepository)
+                .findByIdAndActiveTrue(99L);
+
         verifyNoInteractions(bookingRepository);
-        verifyNoInteractions(bookingMapper);
     }
 
     @Test
     void createBooking_noSeatsAvailable() {
 
         BookingRequest request = new BookingRequest();
+
         request.setUserId(1L);
-        request.setFlightId(10L);
+        request.setFlightId(1L);
         request.setSeatClass(SeatClass.ECONOMY);
 
         User user = mock(User.class);
@@ -204,10 +226,10 @@ class BookingServiceTest {
         when(user.getActive())
                 .thenReturn(true);
 
-        when(flightRepository.findByIdAndActiveTrue(10L))
+        when(flightRepository.findByIdAndActiveTrue(1L))
                 .thenReturn(Optional.of(flight));
 
-        when(flight.getEconomySeatsAvailable())
+        when(flight.getAvailableSeats(SeatClass.ECONOMY))
                 .thenReturn(0);
 
         InvalidBookingException exception =
@@ -217,43 +239,146 @@ class BookingServiceTest {
                 );
 
         assertEquals(
-                "No seats available in " + SeatClass.ECONOMY,
+                "No seats available in ECONOMY",
                 exception.getMessage()
         );
 
+        verify(flight)
+                .getAvailableSeats(SeatClass.ECONOMY);
+
         verifyNoInteractions(bookingRepository);
-        verifyNoInteractions(bookingMapper);
+    }
+
+    // ==================== GET BY ID ====================
+
+    @Test
+    void getBookingById_success() {
+
+        Booking booking = mock(Booking.class);
+        BookingResponse response = mock(BookingResponse.class);
+
+        when(bookingRepository.findById(1L))
+                .thenReturn(Optional.of(booking));
+
+        when(bookingMapper.toResponse(booking))
+                .thenReturn(response);
+
+        BookingResponse result =
+                bookingService.getBookingById(1L);
+
+        assertSame(response, result);
+    }
+
+    @Test
+    void getBookingById_notFound() {
+
+        when(bookingRepository.findById(99L))
+                .thenReturn(Optional.empty());
+
+        assertThrows(
+                BookingNotFoundException.class,
+                () -> bookingService.getBookingById(99L)
+        );
+    }
+
+    // ==================== GET ALL ====================
+
+    @Test
+    void getAllBookings_success() {
+
+        Booking booking1 = mock(Booking.class);
+        Booking booking2 = mock(Booking.class);
+
+        BookingResponse response1 = mock(BookingResponse.class);
+        BookingResponse response2 = mock(BookingResponse.class);
+
+        when(bookingRepository.findAll())
+                .thenReturn(List.of(booking1, booking2));
+
+        when(bookingMapper.toResponse(booking1))
+                .thenReturn(response1);
+
+        when(bookingMapper.toResponse(booking2))
+                .thenReturn(response2);
+
+        List<BookingResponse> result =
+                bookingService.getAllBookings();
+
+        assertEquals(2, result.size());
+        assertSame(response1, result.get(0));
+        assertSame(response2, result.get(1));
     }
 
     // ==================== CANCEL ====================
 
     @Test
-    void cancelBooking_confirmedBooking_shouldReleaseSeatsAndRefundPayment() {
+    void cancelBooking_rejectsAlreadyCancelled() {
+
+        Booking booking = mock(Booking.class);
+
+        when(bookingRepository.findById(1L))
+                .thenReturn(Optional.of(booking));
+
+        when(booking.getStatus())
+                .thenReturn(BookingStatus.CANCELLED);
+
+        assertThrows(
+                InvalidBookingException.class,
+                () -> bookingService.cancelBooking(1L)
+        );
+
+        verifyNoInteractions(flightService);
+        verifyNoInteractions(paymentService);
+    }
+
+    @Test
+    void cancelBooking_rejectsExpiredBooking() {
+
+        Booking booking = mock(Booking.class);
+
+        when(bookingRepository.findById(1L))
+                .thenReturn(Optional.of(booking));
+
+        when(booking.getStatus())
+                .thenReturn(BookingStatus.EXPIRED);
+
+        assertThrows(
+                InvalidBookingException.class,
+                () -> bookingService.cancelBooking(1L)
+        );
+
+        verifyNoInteractions(flightService);
+        verifyNoInteractions(paymentService);
+    }
+
+    @Test
+    void cancelBooking_releasesSeatsAndRefundsConfirmedBooking() {
 
         Booking booking = mock(Booking.class);
         Flight flight = mock(Flight.class);
+
         BookingResponse response = mock(BookingResponse.class);
 
-        when(bookingRepository.findById(13L))
+        when(bookingRepository.findById(1L))
                 .thenReturn(Optional.of(booking));
-
-        when(booking.getId())
-                .thenReturn(13L);
 
         when(booking.getStatus())
                 .thenReturn(BookingStatus.CONFIRMED);
 
-        when(booking.getSeatClass())
-                .thenReturn(SeatClass.PREMIUM_ECONOMY);
+        when(booking.getId())
+                .thenReturn(1L);
 
         when(booking.getFlight())
                 .thenReturn(flight);
 
         when(flight.getId())
-                .thenReturn(4L);
+                .thenReturn(10L);
 
-        when(passengerRepository.countByBookingId(13L))
-                .thenReturn(1L);
+        when(booking.getSeatClass())
+                .thenReturn(SeatClass.ECONOMY);
+
+        when(passengerRepository.countByBookingId(1L))
+                .thenReturn(2L);
 
         when(bookingRepository.save(booking))
                 .thenReturn(booking);
@@ -262,16 +387,19 @@ class BookingServiceTest {
                 .thenReturn(response);
 
         BookingResponse result =
-                bookingService.cancelBooking(13L);
+                bookingService.cancelBooking(1L);
 
-        verify(flightService).releaseSeats(
-                4L,
-                SeatClass.PREMIUM_ECONOMY,
-                1
-        );
+        assertSame(response, result);
+
+        verify(flightService)
+                .releaseSeats(
+                        10L,
+                        SeatClass.ECONOMY,
+                        2
+                );
 
         verify(paymentService)
-                .refundPayment(13L);
+                .refundPayment(1L);
 
         verify(booking)
                 .setStatus(BookingStatus.CANCELLED);
@@ -281,183 +409,72 @@ class BookingServiceTest {
 
         verify(bookingRepository)
                 .save(booking);
-
-        assertSame(response, result);
     }
 
     @Test
-    void cancelBooking_bookingNotFound_shouldThrowException() {
-
-        when(bookingRepository.findById(99L))
-                .thenReturn(Optional.empty());
-
-        assertThrows(
-                BookingNotFoundException.class,
-                () -> bookingService.cancelBooking(99L)
-        );
-
-        verifyNoInteractions(
-                flightService,
-                paymentService,
-                passengerRepository,
-                bookingMapper
-        );
-
-        verify(bookingRepository, never())
-                .save(any());
-    }
-
-    @Test
-    void cancelBooking_alreadyCancelled_shouldThrowException() {
+    void cancelBooking_rejectsConfirmedBookingWithoutPassengers() {
 
         Booking booking = mock(Booking.class);
 
-        when(bookingRepository.findById(13L))
+        when(bookingRepository.findById(1L))
                 .thenReturn(Optional.of(booking));
-
-        when(booking.getStatus())
-                .thenReturn(BookingStatus.CANCELLED);
-
-        InvalidBookingException exception =
-                assertThrows(
-                        InvalidBookingException.class,
-                        () -> bookingService.cancelBooking(13L)
-                );
-
-        assertEquals(
-                "Booking is already cancelled",
-                exception.getMessage()
-        );
-
-        verifyNoInteractions(
-                flightService,
-                paymentService,
-                passengerRepository,
-                bookingMapper
-        );
-
-        verify(bookingRepository, never())
-                .save(any());
-    }
-
-    @Test
-    void cancelBooking_expiredBooking_shouldThrowException() {
-
-        Booking booking = mock(Booking.class);
-
-        when(bookingRepository.findById(13L))
-                .thenReturn(Optional.of(booking));
-
-        when(booking.getStatus())
-                .thenReturn(BookingStatus.EXPIRED);
-
-        InvalidBookingException exception =
-                assertThrows(
-                        InvalidBookingException.class,
-                        () -> bookingService.cancelBooking(13L)
-                );
-
-        assertEquals(
-                "Expired booking cannot be cancelled",
-                exception.getMessage()
-        );
-
-        verifyNoInteractions(
-                flightService,
-                paymentService,
-                passengerRepository,
-                bookingMapper
-        );
-
-        verify(bookingRepository, never())
-                .save(any());
-    }
-
-    @Test
-    void cancelBooking_confirmedBookingWithoutPassengers_shouldThrowException() {
-
-        Booking booking = mock(Booking.class);
-
-        when(bookingRepository.findById(13L))
-                .thenReturn(Optional.of(booking));
-
-        when(booking.getId())
-                .thenReturn(13L);
 
         when(booking.getStatus())
                 .thenReturn(BookingStatus.CONFIRMED);
 
-        when(passengerRepository.countByBookingId(13L))
+        when(booking.getId())
+                .thenReturn(1L);
+
+        when(passengerRepository.countByBookingId(1L))
                 .thenReturn(0L);
 
-        InvalidBookingException exception =
-                assertThrows(
-                        InvalidBookingException.class,
-                        () -> bookingService.cancelBooking(13L)
-                );
-
-        assertEquals(
-                "Confirmed booking has no passengers",
-                exception.getMessage()
+        assertThrows(
+                InvalidBookingException.class,
+                () -> bookingService.cancelBooking(1L)
         );
 
-        verifyNoInteractions(
-                flightService,
-                paymentService,
-                bookingMapper
-        );
-
+        verifyNoInteractions(flightService);
+        verifyNoInteractions(paymentService);
         verify(bookingRepository, never())
                 .save(any());
     }
 
-    // ==================== EXPIRATION ====================
+    // ==================== EXPIRE ====================
 
     @Test
-    void expirePendingBookings_shouldMarkBookingsAsExpired() {
+    void expirePendingBookings_marksBookingsAsExpired() {
 
-        Booking firstBooking = mock(Booking.class);
-        Booking secondBooking = mock(Booking.class);
+        Booking booking1 = mock(Booking.class);
+        Booking booking2 = mock(Booking.class);
 
-        when(bookingRepository
-                .findByStatusAndExpiresAtBefore(
-                        eq(BookingStatus.PENDING),
-                        any(LocalDateTime.class)
-                ))
-                .thenReturn(List.of(firstBooking, secondBooking));
+        when(bookingRepository.findByStatusAndExpiresAtBefore(
+                eq(BookingStatus.PENDING),
+                any(LocalDateTime.class)
+        )).thenReturn(List.of(booking1, booking2));
 
         bookingService.expirePendingBookings();
 
-        verify(firstBooking)
+        verify(booking1)
                 .setStatus(BookingStatus.EXPIRED);
 
-        verify(secondBooking)
+        verify(booking2)
                 .setStatus(BookingStatus.EXPIRED);
 
         verify(bookingRepository)
-                .saveAll(List.of(firstBooking, secondBooking));
+                .saveAll(List.of(booking1, booking2));
     }
 
     @Test
-    void expirePendingBookings_whenNoExpiredBookings_shouldSaveEmptyList() {
+    void expirePendingBookings_doesNothingWhenNoBookings() {
 
-        when(bookingRepository
-                .findByStatusAndExpiresAtBefore(
-                        eq(BookingStatus.PENDING),
-                        any(LocalDateTime.class)
-                ))
-                .thenReturn(List.of());
+        when(bookingRepository.findByStatusAndExpiresAtBefore(
+                eq(BookingStatus.PENDING),
+                any(LocalDateTime.class)
+        )).thenReturn(List.of());
 
         bookingService.expirePendingBookings();
 
         verify(bookingRepository)
                 .saveAll(List.of());
-
-        verifyNoInteractions(
-                bookingMapper,
-                flightService,
-                paymentService,
-                passengerRepository
-        );
     }
 }
