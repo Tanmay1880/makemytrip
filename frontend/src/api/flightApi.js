@@ -9,16 +9,36 @@ import api from './axiosConfig';
 
 /**
  * Search for flights.
+ * Frontend passes airport codes (`from`/`to`) and `date` from the URL.
+ * Backend expects: departureAirportId, arrivalAirportId, departureDate.
  * @param {{ from: string, to: string, date: string }} params
  * @returns {Promise<Array>}
  */
-export async function searchFlights(params) {
-  // TODO: Replace with your actual endpoint
-  // const response = await api.get('/flights/search', { params });
-  // return response.data;
+export async function searchFlights({ from, to, date }) {
+  const airportsResponse = await api.get('/api/airports');
+  const airports = airportsResponse.data || [];
 
-  // --- Placeholder ---
-  return mockSearchFlights(params);
+  const departureAirportId = resolveAirportId(from, airports);
+  const arrivalAirportId = resolveAirportId(to, airports);
+
+  if (departureAirportId == null || arrivalAirportId == null) {
+    const error = new Error('One or both airports could not be resolved');
+    error.response = {
+      status: 400,
+      data: { message: 'Unknown airport code. Ensure airports exist in the backend.' },
+    };
+    throw error;
+  }
+
+  const response = await api.get('/api/flights/search', {
+    params: {
+      departureAirportId,
+      arrivalAirportId,
+      departureDate: date,
+    },
+  });
+
+  return (response.data || []).map((flight) => mapFlightResponse(flight, airports));
 }
 
 /**
@@ -101,18 +121,52 @@ function formatDuration(minutes) {
   return `${h}h ${m.toString().padStart(2, '0')}m`;
 }
 
-async function mockSearchFlights({ from, to, date }) {
-  await delay(800);
-  let results = mockFlights.filter(
-    (f) =>
-      (!from || f.departureAirportCode === from) &&
-      (!to || f.arrivalAirportCode === to)
-  );
-  // If no exact match, return all flights so the UI is demonstrable
-  if (results.length === 0) {
-    results = [...mockFlights];
+/**
+ * Resolve a Home/URL airport value (code or numeric id) to a backend airport id.
+ */
+function resolveAirportId(value, airports) {
+  if (value == null || value === '') return null;
+  const raw = String(value).trim();
+  if (/^\d+$/.test(raw)) {
+    const byId = airports.find((a) => String(a.id) === raw);
+    if (byId) return byId.id;
   }
-  return results.map(enrichFlight);
+  const byCode = airports.find(
+    (a) => a.code && a.code.toUpperCase() === raw.toUpperCase()
+  );
+  return byCode ? byCode.id : null;
+}
+
+/**
+ * Map Spring Boot FlightResponse to the shape FlightCard / FlightResults expect.
+ */
+function mapFlightResponse(f, airports = []) {
+  const depAirport =
+    airports.find((a) => a.id === f.departureAirportId) ||
+    airports.find((a) => a.code === f.departureAirportCode);
+  const arrAirport =
+    airports.find((a) => a.id === f.arrivalAirportId) ||
+    airports.find((a) => a.code === f.arrivalAirportCode);
+
+  const depTime = new Date(f.departureTime);
+  const arrTime = new Date(f.arrivalTime);
+  let durationMin = (arrTime - depTime) / 60000;
+  if (Number.isNaN(durationMin)) {
+    durationMin = 0;
+  } else if (durationMin < 0) {
+    durationMin += 24 * 60;
+  }
+
+  return {
+    ...f,
+    economySeats: f.economySeatsAvailable ?? f.economySeats ?? 0,
+    premiumEconomySeats: f.premiumEconomySeatsAvailable ?? f.premiumEconomySeats ?? 0,
+    businessSeats: f.businessSeatsAvailable ?? f.businessSeats ?? 0,
+    departureCity: depAirport?.city || '',
+    arrivalCity: arrAirport?.city || '',
+    duration: formatDuration(Math.round(durationMin)),
+    durationMinutes: durationMin,
+  };
 }
 
 async function mockGetFlightById(flightId) {
