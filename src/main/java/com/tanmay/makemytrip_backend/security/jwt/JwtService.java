@@ -28,6 +28,16 @@ public class JwtService {
         this.expiration = expiration;
     }
 
+    public String extractUsername(String token) {
+
+        return Jwts.parser()
+                .verifyWith(secretKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .getSubject();
+    }
+
     public String generateToken(Authentication authentication) {
 
         String email = authentication.getName();

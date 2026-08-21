@@ -19,6 +19,8 @@ import com.tanmay.makemytrip_backend.user.exception.UserNotFoundException;
 import com.tanmay.makemytrip_backend.user.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -59,14 +61,9 @@ public class BookingService {
     @Transactional
     public BookingResponse createBooking(BookingRequest request) {
 
-        // ==================== USER VALIDATION ====================
+        // ==================== AUTHENTICATED USER ====================
 
-        User user = userRepository.findById(request.getUserId())
-                .orElseThrow(() ->
-                        new UserNotFoundException(
-                                "User not found with id: " + request.getUserId()
-                        )
-                );
+        User user = getAuthenticatedUser();
 
         if (!Boolean.TRUE.equals(user.getActive())) {
             throw new InvalidBookingException(
@@ -79,6 +76,7 @@ public class BookingService {
         Flight flight = flightRepository.findByIdAndActiveTrue(
                         request.getFlightId()
                 )
+                // ...
                 .orElseThrow(() ->
                         new FlightNotFoundException(
                                 "Active flight not found with id: "
@@ -134,6 +132,8 @@ public class BookingService {
                         )
                 );
 
+        validateBookingAccess(booking);
+
         return bookingMapper.toResponse(booking);
     }
 
@@ -141,7 +141,22 @@ public class BookingService {
 
     public List<BookingResponse> getAllBookings() {
 
-        return bookingRepository.findAll()
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication.getAuthorities().stream()
+                .anyMatch(authority ->
+                        authority.getAuthority().equals("ROLE_ADMIN"))) {
+
+            return bookingRepository.findAll()
+                    .stream()
+                    .map(bookingMapper::toResponse)
+                    .toList();
+        }
+
+        User user = getAuthenticatedUser();
+
+        return bookingRepository.findByUser_Id(user.getId())
                 .stream()
                 .map(bookingMapper::toResponse)
                 .toList();
@@ -158,6 +173,8 @@ public class BookingService {
                                 "Booking not found with id: " + bookingId
                         )
                 );
+
+        validateBookingAccess(booking);
 
         // ==================== STATUS VALIDATION ====================
 
@@ -239,5 +256,42 @@ public class BookingService {
                 .replace("-", "")
                 .substring(0, 10)
                 .toUpperCase();
+    }
+
+    private User getAuthenticatedUser() {
+
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+
+        String email = authentication.getName();
+
+        return userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new UserNotFoundException(
+                                "Authenticated user not found"
+                        )
+                );
+    }
+
+    private void validateBookingAccess(Booking booking) {
+
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(authority ->
+                        authority.getAuthority().equals("ROLE_ADMIN"));
+
+        if (isAdmin) {
+            return;
+        }
+
+        User authenticatedUser = getAuthenticatedUser();
+
+        if (!booking.getUser().getId().equals(authenticatedUser.getId())) {
+            throw new BookingNotFoundException(
+                    "Booking not found with id: " + booking.getId()
+            );
+        }
     }
 }

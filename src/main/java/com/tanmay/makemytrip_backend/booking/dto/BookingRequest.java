@@ -8,9 +8,6 @@ public class BookingRequest {
     // ==================== BOOKING REFERENCES ====================
 
     @NotNull
-    private Long userId;
-
-    @NotNull
     private Long flightId;
 
     // ==================== SEAT CLASS ====================
@@ -19,10 +16,6 @@ public class BookingRequest {
     private SeatClass seatClass;
 
     // ==================== GETTERS ====================
-
-    public Long getUserId() {
-        return userId;
-    }
 
     public Long getFlightId() {
         return flightId;
@@ -33,10 +26,6 @@ public class BookingRequest {
     }
 
     // ==================== SETTERS ====================
-
-    public void setUserId(Long userId) {
-        this.userId = userId;
-    }
 
     public void setFlightId(Long flightId) {
         this.flightId = flightId;
