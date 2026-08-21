@@ -12,12 +12,12 @@ import api from './axiosConfig';
  * @param {{ flightId, seatClass, passengers: [], totalAmount }} payload
  */
 export async function createBooking(payload) {
-  // TODO: Replace with your actual endpoint
-  // const response = await api.post('/bookings', payload);
-  // return response.data;
+  const response = await api.post('/api/bookings', {
+    flightId: payload.flightId,
+    seatClass: payload.seatClass,
+  });
 
-  // --- Placeholder ---
-  return mockCreateBooking(payload);
+  return response.data;
 }
 
 /**

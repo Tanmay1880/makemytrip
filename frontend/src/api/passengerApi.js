@@ -2,37 +2,37 @@ import api from './axiosConfig';
 
 // ============================================================
 // PASSENGER API
-// ------------------------------------------------------------
-// NOTE: Adjust the endpoint paths and field names below to
-// match your Spring Boot REST API contract.
 // ============================================================
 
 /**
- * Save passenger details for a booking.
- * @param {{ bookingId, passengers: [] }} payload
+ * Save passengers for a booking.
+ *
+ * Backend expects one passenger per request:
+ * POST /api/bookings/{bookingId}/passengers
  */
-export async function savePassengers(payload) {
-  // TODO: Replace with your actual endpoint
-  // const response = await api.post('/passengers', payload);
-  // return response.data;
+export async function savePassengers({ bookingId, passengers }) {
+  const responses = await Promise.all(
+    passengers.map((passenger) =>
+      api.post(`/api/bookings/${bookingId}/passengers`, {
+        firstName: passenger.firstName,
+        lastName: passenger.lastName,
+        dateOfBirth: passenger.dateOfBirth,
+        gender: passenger.gender,
+        passengerType: passenger.passengerType,
+      })
+    )
+  );
 
-  // --- Placeholder ---
-  await new Promise((r) => setTimeout(r, 400));
-  return { success: true, ...payload };
+  return responses.map((response) => response.data);
 }
 
 /**
- * Get passengers for a booking.
- * @param {string|number} bookingId
+ * Get passengers belonging to a booking.
  */
 export async function getPassengersByBooking(bookingId) {
-  // TODO: Replace with your actual endpoint
-  // const response = await api.get(`/passengers/booking/${bookingId}`);
-  // return response.data;
+  const response = await api.get(
+    `/api/bookings/${bookingId}/passengers`
+  );
 
-  // --- Placeholder ---
-  await new Promise((r) => setTimeout(r, 300));
-  const bookings = JSON.parse(localStorage.getItem('mmt_mock_bookings') || '[]');
-  const booking = bookings.find((b) => String(b.id) === String(bookingId));
-  return booking ? booking.passengers || [] : [];
+  return response.data;
 }

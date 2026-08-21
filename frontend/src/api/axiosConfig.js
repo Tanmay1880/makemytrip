@@ -2,12 +2,10 @@ import axios from 'axios';
 
 // ============================================================
 // CENTRAL API CONFIGURATION
-// ------------------------------------------------------------
-// Change BASE_URL here to point to your Spring Boot REST API.
-// Default development backend URL: http://localhost:8080
 // ============================================================
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+const BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -17,33 +15,52 @@ const api = axios.create({
   timeout: 15000,
 });
 
-// ---- Request interceptor: attach JWT ----
+// ============================================================
+// REQUEST INTERCEPTOR
+// Attach JWT to every authenticated request
+// ============================================================
+
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('jwt_token');
+
     if (token) {
+      config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
     }
+
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// ---- Response interceptor: handle auth errors globally ----
+// ============================================================
+// RESPONSE INTERCEPTOR
+// ============================================================
+
 api.interceptors.response.use(
   (response) => response,
+
   (error) => {
-    if (error.response && error.response.status === 401) {
-      // Token expired or invalid — clear and redirect to login
+    if (error.response?.status === 401) {
       localStorage.removeItem('jwt_token');
       localStorage.removeItem('user_data');
-      if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+
+      if (
+        window.location.pathname !== '/login' &&
+        window.location.pathname !== '/register'
+      ) {
         window.location.href = '/login';
       }
     }
+
     return Promise.reject(error);
   }
 );
+
+// ============================================================
+// EXPORT
+// ============================================================
 
 export default api;
 export { BASE_URL };
