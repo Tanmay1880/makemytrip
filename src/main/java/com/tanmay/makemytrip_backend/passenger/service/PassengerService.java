@@ -11,6 +11,8 @@ import com.tanmay.makemytrip_backend.passenger.exception.InvalidPassengerExcepti
 import com.tanmay.makemytrip_backend.passenger.exception.PassengerNotFoundException;
 import com.tanmay.makemytrip_backend.passenger.mapper.PassengerMapper;
 import com.tanmay.makemytrip_backend.passenger.repository.PassengerRepository;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -45,6 +47,8 @@ public class PassengerService {
                         )
                 );
 
+        validateBookingAccess(booking);
+
         if (booking.getStatus() != BookingStatus.PENDING) {
             throw new InvalidPassengerException(
                     "Passengers can only be added to a pending booking"
@@ -76,6 +80,12 @@ public class PassengerService {
                         )
                 );
 
+        if (!hasBookingAccess(passenger.getBooking())) {
+            throw new PassengerNotFoundException(
+                    "Passenger not found with id: " + id
+            );
+        }
+
         return passengerMapper.toResponse(passenger);
     }
 
@@ -84,15 +94,47 @@ public class PassengerService {
     public List<PassengerResponse> getPassengersByBookingId(
             Long bookingId) {
 
-        if (!bookingRepository.existsById(bookingId)) {
-            throw new BookingNotFoundException(
-                    "Booking not found with id: " + bookingId
-            );
-        }
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() ->
+                        new BookingNotFoundException(
+                                "Booking not found with id: " + bookingId
+                        )
+                );
+
+        validateBookingAccess(booking);
 
         return passengerRepository.findByBookingId(bookingId)
                 .stream()
                 .map(passengerMapper::toResponse)
                 .toList();
+    }
+
+    // ==================== AUTHORIZATION ====================
+
+    private void validateBookingAccess(Booking booking) {
+
+        if (!hasBookingAccess(booking)) {
+            throw new BookingNotFoundException(
+                    "Booking not found with id: " + booking.getId()
+            );
+        }
+    }
+
+    private boolean hasBookingAccess(Booking booking) {
+
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(authority ->
+                        authority.getAuthority().equals("ROLE_ADMIN")
+                );
+
+        if (isAdmin) {
+            return true;
+        }
+
+        return booking.getUser().getEmail()
+                .equals(authentication.getName());
     }
 }

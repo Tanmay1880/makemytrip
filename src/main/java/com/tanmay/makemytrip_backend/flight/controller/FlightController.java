@@ -5,11 +5,11 @@ import com.tanmay.makemytrip_backend.flight.dto.FlightResponse;
 import com.tanmay.makemytrip_backend.flight.dto.FlightUpdateRequest;
 import com.tanmay.makemytrip_backend.flight.service.FlightService;
 import jakarta.validation.Valid;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.format.annotation.DateTimeFormat;
-import java.time.LocalDate;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -93,6 +93,4 @@ public class FlightController {
                 )
         );
     }
-
-
 }

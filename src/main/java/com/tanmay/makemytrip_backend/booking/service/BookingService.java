@@ -17,10 +17,10 @@ import com.tanmay.makemytrip_backend.payment.service.PaymentService;
 import com.tanmay.makemytrip_backend.user.entity.User;
 import com.tanmay.makemytrip_backend.user.exception.UserNotFoundException;
 import com.tanmay.makemytrip_backend.user.repository.UserRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -76,7 +76,6 @@ public class BookingService {
         Flight flight = flightRepository.findByIdAndActiveTrue(
                         request.getFlightId()
                 )
-                // ...
                 .orElseThrow(() ->
                         new FlightNotFoundException(
                                 "Active flight not found with id: "
@@ -144,9 +143,7 @@ public class BookingService {
         Authentication authentication =
                 SecurityContextHolder.getContext().getAuthentication();
 
-        if (authentication.getAuthorities().stream()
-                .anyMatch(authority ->
-                        authority.getAuthority().equals("ROLE_ADMIN"))) {
+        if (isAdmin(authentication)) {
 
             return bookingRepository.findAll()
                     .stream()
@@ -247,16 +244,7 @@ public class BookingService {
         bookingRepository.saveAll(expiredBookings);
     }
 
-    // ==================== PNR ====================
-
-    private String generatePnr() {
-
-        return UUID.randomUUID()
-                .toString()
-                .replace("-", "")
-                .substring(0, 10)
-                .toUpperCase();
-    }
+    // ==================== AUTHENTICATION ====================
 
     private User getAuthenticatedUser() {
 
@@ -273,16 +261,14 @@ public class BookingService {
                 );
     }
 
+    // ==================== AUTHORIZATION ====================
+
     private void validateBookingAccess(Booking booking) {
 
         Authentication authentication =
                 SecurityContextHolder.getContext().getAuthentication();
 
-        boolean isAdmin = authentication.getAuthorities().stream()
-                .anyMatch(authority ->
-                        authority.getAuthority().equals("ROLE_ADMIN"));
-
-        if (isAdmin) {
+        if (isAdmin(authentication)) {
             return;
         }
 
@@ -293,5 +279,24 @@ public class BookingService {
                     "Booking not found with id: " + booking.getId()
             );
         }
+    }
+
+    private boolean isAdmin(Authentication authentication) {
+
+        return authentication.getAuthorities().stream()
+                .anyMatch(authority ->
+                        authority.getAuthority().equals("ROLE_ADMIN")
+                );
+    }
+
+    // ==================== PNR ====================
+
+    private String generatePnr() {
+
+        return UUID.randomUUID()
+                .toString()
+                .replace("-", "")
+                .substring(0, 10)
+                .toUpperCase();
     }
 }

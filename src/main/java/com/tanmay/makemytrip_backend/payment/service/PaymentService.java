@@ -16,6 +16,8 @@ import com.tanmay.makemytrip_backend.payment.gateway.PaymentGateway;
 import com.tanmay.makemytrip_backend.payment.gateway.PaymentResult;
 import com.tanmay.makemytrip_backend.payment.mapper.PaymentMapper;
 import com.tanmay.makemytrip_backend.payment.repository.PaymentRepository;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,8 +56,6 @@ public class PaymentService {
     @Transactional
     public PaymentResponse createPayment(PaymentRequest request) {
 
-        // ==================== BOOKING VALIDATION ====================
-
         Booking booking = bookingRepository.findById(request.getBookingId())
                 .orElseThrow(() ->
                         new BookingNotFoundException(
@@ -64,6 +64,10 @@ public class PaymentService {
                         )
                 );
 
+        // USER can only pay for own booking.
+        // ADMIN can access any booking.
+        validateBookingAccess(booking);
+
         if (booking.getStatus() != BookingStatus.PENDING) {
             throw new InvalidPaymentException(
                     "Payment can only be initiated for a pending booking"
@@ -71,8 +75,6 @@ public class PaymentService {
         }
 
         validateBookingNotExpired(booking);
-
-        // ==================== PASSENGER VALIDATION ====================
 
         long passengerCount =
                 passengerRepository.countByBookingId(booking.getId());
@@ -83,22 +85,14 @@ public class PaymentService {
             );
         }
 
-        // ==================== GET FLIGHT ====================
-
         Flight flight = booking.getFlight();
-
-        // ==================== GET PRICE ====================
 
         BigDecimal pricePerPassenger =
                 flight.getPrice(booking.getSeatClass());
 
-        // ==================== CALCULATE TOTAL ====================
-
         BigDecimal totalAmount = pricePerPassenger.multiply(
                 BigDecimal.valueOf(passengerCount)
         );
-
-        // ==================== SUCCESS PAYMENT CHECK ====================
 
         boolean successfulPaymentExists =
                 paymentRepository.findByBookingIdAndStatus(
@@ -111,8 +105,6 @@ public class PaymentService {
                     "Booking already has a successful payment"
             );
         }
-
-        // ==================== CREATE PAYMENT ====================
 
         String paymentReference = generatePaymentReference();
 
@@ -133,8 +125,6 @@ public class PaymentService {
     @Transactional
     public PaymentResponse processPayment(Long paymentId) {
 
-        // ==================== FIND PAYMENT ====================
-
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() ->
                         new InvalidPaymentException(
@@ -142,7 +132,11 @@ public class PaymentService {
                         )
                 );
 
-        // ==================== PAYMENT STATUS ====================
+        Booking booking = payment.getBooking();
+
+        // USER can only process payment for own booking.
+        // ADMIN can process any booking.
+        validateBookingAccess(booking);
 
         if (payment.getStatus() != PaymentStatus.INITIATED) {
             throw new InvalidPaymentException(
@@ -150,21 +144,13 @@ public class PaymentService {
             );
         }
 
-        // ==================== BOOKING STATUS ====================
-
-        Booking booking = payment.getBooking();
-
         if (booking.getStatus() != BookingStatus.PENDING) {
             throw new InvalidPaymentException(
                     "Booking cannot be confirmed"
             );
         }
 
-        // ==================== BOOKING EXPIRATION ====================
-
         validateBookingNotExpired(booking);
-
-        // ==================== PASSENGER VALIDATION ====================
 
         long passengerCount =
                 passengerRepository.countByBookingId(booking.getId());
@@ -174,8 +160,6 @@ public class PaymentService {
                     "Cannot process payment without passengers"
             );
         }
-
-        // ==================== PAYMENT GATEWAY ====================
 
         PaymentResult paymentResult =
                 paymentGateway.processPayment(payment.getAmount());
@@ -190,20 +174,14 @@ public class PaymentService {
             return paymentMapper.toResponse(failedPayment);
         }
 
-        // ==================== RESERVE SEATS ====================
-
         flightService.reserveSeats(
                 booking.getFlight().getId(),
                 booking.getSeatClass(),
                 (int) passengerCount
         );
 
-        // ==================== PAYMENT SUCCESS ====================
-
         payment.setStatus(PaymentStatus.SUCCESS);
         payment.setProcessedAt(LocalDateTime.now());
-
-        // ==================== BOOKING CONFIRMATION ====================
 
         booking.setStatus(BookingStatus.CONFIRMED);
         booking.setTotalAmount(payment.getAmount());
@@ -213,6 +191,59 @@ public class PaymentService {
         bookingRepository.save(booking);
 
         return paymentMapper.toResponse(savedPayment);
+    }
+
+    // ==================== REFUND PAYMENT ====================
+
+    @Transactional
+    public void refundPayment(Long bookingId) {
+
+        Payment payment =
+                paymentRepository.findByBookingIdAndStatus(
+                                bookingId,
+                                PaymentStatus.SUCCESS
+                        )
+                        .orElseThrow(() ->
+                                new InvalidPaymentException(
+                                        "No successful payment found for booking id: "
+                                                + bookingId
+                                )
+                        );
+
+        /*
+         * Refund is called internally by BookingService after
+         * BookingService has already validated booking ownership.
+         */
+
+        payment.setStatus(PaymentStatus.REFUNDED);
+        payment.setProcessedAt(LocalDateTime.now());
+
+        paymentRepository.save(payment);
+    }
+
+    // ==================== AUTHORIZATION ====================
+
+    private void validateBookingAccess(Booking booking) {
+
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(authority ->
+                        authority.getAuthority().equals("ROLE_ADMIN")
+                );
+
+        if (isAdmin) {
+            return;
+        }
+
+        String authenticatedEmail = authentication.getName();
+
+        if (!booking.getUser().getEmail().equals(authenticatedEmail)) {
+            throw new BookingNotFoundException(
+                    "Booking not found with id: " + booking.getId()
+            );
+        }
     }
 
     // ==================== PAYMENT REFERENCE ====================
@@ -236,28 +267,5 @@ public class PaymentService {
                     "Booking has expired"
             );
         }
-    }
-
-    // ==================== REFUND PAYMENT ====================
-
-    @Transactional
-    public void refundPayment(Long bookingId) {
-
-        Payment payment =
-                paymentRepository.findByBookingIdAndStatus(
-                                bookingId,
-                                PaymentStatus.SUCCESS
-                        )
-                        .orElseThrow(() ->
-                                new InvalidPaymentException(
-                                        "No successful payment found for booking id: "
-                                                + bookingId
-                                )
-                        );
-
-        payment.setStatus(PaymentStatus.REFUNDED);
-        payment.setProcessedAt(LocalDateTime.now());
-
-        paymentRepository.save(payment);
     }
 }
