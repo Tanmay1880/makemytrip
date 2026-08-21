@@ -1,15 +1,15 @@
 package com.tanmay.makemytrip_backend.security.jwt;
 
+import com.tanmay.makemytrip_backend.security.service.CustomUserDetailsService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.stereotype.Component;
-import org.springframework.web.filter.OncePerRequestFilter;
-import com.tanmay.makemytrip_backend.security.service.CustomUserDetailsService;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
@@ -27,6 +27,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         this.userDetailsService = userDetailsService;
     }
 
+    // ============================================================
+    // SKIP CORS PREFLIGHT REQUESTS
+    // ============================================================
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+
+        return "OPTIONS".equalsIgnoreCase(request.getMethod());
+    }
+
+    // ============================================================
+    // JWT FILTER
+    // ============================================================
+
     @Override
     protected void doFilterInternal(
             HttpServletRequest request,
@@ -36,7 +50,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String authHeader = request.getHeader("Authorization");
 
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        // No JWT → continue normally
+        if (authHeader == null ||
+                !authHeader.startsWith("Bearer ")) {
+
             filterChain.doFilter(request, response);
             return;
         }
@@ -44,10 +61,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = authHeader.substring(7);
 
         try {
+
             String username = jwtService.extractUsername(token);
 
             if (username != null &&
-                    SecurityContextHolder.getContext().getAuthentication() == null) {
+                    SecurityContextHolder
+                            .getContext()
+                            .getAuthentication() == null) {
 
                 UserDetails userDetails =
                         userDetailsService.loadUserByUsername(username);
@@ -59,16 +79,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                 userDetails.getAuthorities()
                         );
 
-                SecurityContextHolder.getContext()
+                SecurityContextHolder
+                        .getContext()
                         .setAuthentication(authentication);
             }
 
         } catch (Exception exception) {
+
             // Invalid, expired, or malformed JWT.
             // Do not authenticate the request.
         }
 
         filterChain.doFilter(request, response);
-
     }
 }

@@ -1,20 +1,23 @@
 package com.tanmay.makemytrip_backend.common.config;
 
 import com.tanmay.makemytrip_backend.security.jwt.JwtAuthenticationFilter;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.Ordered;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
 
 import java.util.List;
 
@@ -27,14 +30,18 @@ public class SecurityConfig {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
-    // ==================== PASSWORD ====================
+    // ============================================================
+    // PASSWORD
+    // ============================================================
 
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    // ==================== AUTHENTICATION MANAGER ====================
+    // ============================================================
+    // AUTHENTICATION MANAGER
+    // ============================================================
 
     @Bean
     public AuthenticationManager authenticationManager(
@@ -44,7 +51,9 @@ public class SecurityConfig {
         return configuration.getAuthenticationManager();
     }
 
-    // ==================== CORS ====================
+    // ============================================================
+    // CORS CONFIGURATION
+    // ============================================================
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
@@ -52,7 +61,8 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         configuration.setAllowedOrigins(
-                List.of("http://localhost:5173")
+                List.of("http://localhost:5174",
+                        "http://localhost:5173")
         );
 
         configuration.setAllowedMethods(
@@ -75,24 +85,52 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source =
                 new UrlBasedCorsConfigurationSource();
 
-        source.registerCorsConfiguration("/**", configuration);
+        source.registerCorsConfiguration(
+                "/**",
+                configuration
+        );
 
         return source;
     }
 
-    // ==================== SECURITY FILTER CHAIN ====================
+    // ============================================================
+    // CORS FILTER
+    // ============================================================
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http)
-            throws Exception {
+    public FilterRegistrationBean<CorsFilter> corsFilterRegistration() {
+
+        CorsFilter corsFilter =
+                new CorsFilter(corsConfigurationSource());
+
+        FilterRegistrationBean<CorsFilter> registration =
+                new FilterRegistrationBean<>(corsFilter);
+
+        registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
+
+        return registration;
+    }
+
+    // ============================================================
+    // SECURITY FILTER CHAIN
+    // ============================================================
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http
+    ) throws Exception {
 
         http
 
-                // ==================== CSRF ====================
+                // ====================================================
+                // CSRF
+                // ====================================================
 
                 .csrf(csrf -> csrf.disable())
 
-                // ==================== CORS ====================
+                // ====================================================
+                // CORS
+                // ====================================================
 
                 .cors(cors ->
                         cors.configurationSource(
@@ -100,7 +138,9 @@ public class SecurityConfig {
                         )
                 )
 
-                // ==================== SESSION ====================
+                // ====================================================
+                // SESSION
+                // ====================================================
 
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(
@@ -108,59 +148,81 @@ public class SecurityConfig {
                         )
                 )
 
-                // ==================== JWT FILTER ====================
+                // ====================================================
+                // JWT FILTER
+                // ====================================================
 
                 .addFilterBefore(
                         jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class
                 )
 
-                // ==================== AUTHORIZATION ====================
+                // ====================================================
+                // AUTHORIZATION
+                // ====================================================
 
                 .authorizeHttpRequests(auth -> auth
 
-                        // ==================== PUBLIC ====================
+                        // ------------------------------------------------
+                        // PUBLIC AUTHENTICATION
+                        // ------------------------------------------------
 
                         .requestMatchers(
                                 "/api/auth/login"
                         ).permitAll()
 
-                        // Public registration
+                        // ------------------------------------------------
+                        // PUBLIC REGISTRATION
+                        // ------------------------------------------------
+
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/users"
                         ).permitAll()
 
-                        // Public flight read/search
+                        // ------------------------------------------------
+                        // PUBLIC FLIGHT READ
+                        // ------------------------------------------------
+
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/flights",
                                 "/api/flights/**"
                         ).permitAll()
 
-                        // Public airline read
+                        // ------------------------------------------------
+                        // PUBLIC AIRLINE READ
+                        // ------------------------------------------------
+
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/airlines",
                                 "/api/airlines/**"
                         ).permitAll()
 
-                        // Public airport read
+                        // ------------------------------------------------
+                        // PUBLIC AIRPORT READ
+                        // ------------------------------------------------
+
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/airports",
                                 "/api/airports/**"
                         ).permitAll()
 
-                        // CORS preflight
+                        // ------------------------------------------------
+                        // CORS PREFLIGHT
+                        // ------------------------------------------------
+
                         .requestMatchers(
                                 HttpMethod.OPTIONS,
                                 "/**"
                         ).permitAll()
 
-                        // ==================== ADMIN ====================
+                        // =================================================
+                        // ADMIN - FLIGHTS
+                        // =================================================
 
-                        // Flight management
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/flights"
@@ -176,7 +238,10 @@ public class SecurityConfig {
                                 "/api/flights/**"
                         ).hasRole("ADMIN")
 
-                        // Airline management
+                        // =================================================
+                        // ADMIN - AIRLINES
+                        // =================================================
+
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/airlines"
@@ -192,7 +257,10 @@ public class SecurityConfig {
                                 "/api/airlines/**"
                         ).hasRole("ADMIN")
 
-                        // Airport management
+                        // =================================================
+                        // ADMIN - AIRPORTS
+                        // =================================================
+
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/airports"
@@ -208,35 +276,37 @@ public class SecurityConfig {
                                 "/api/airports/**"
                         ).hasRole("ADMIN")
 
-                        // All users
+                        // =================================================
+                        // ADMIN - USERS
+                        // =================================================
+
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/users"
                         ).hasRole("ADMIN")
 
-                        // Deactivate user
                         .requestMatchers(
                                 HttpMethod.DELETE,
                                 "/api/users/**"
                         ).hasRole("ADMIN")
 
-                        // ==================== USER / ADMIN ====================
+                        // =================================================
+                        // USER / ADMIN - INDIVIDUAL USER
+                        // =================================================
 
-                        // Individual user.
-                        // UserService checks ownership.
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/users/**"
                         ).authenticated()
 
-                        // Individual user update.
-                        // UserService checks ownership.
                         .requestMatchers(
                                 HttpMethod.PUT,
                                 "/api/users/**"
                         ).authenticated()
 
-                        // ==================== BOOKING SYSTEM ====================
+                        // =================================================
+                        // BOOKING SYSTEM
+                        // =================================================
 
                         .requestMatchers(
                                 "/api/bookings/**",
@@ -244,7 +314,9 @@ public class SecurityConfig {
                                 "/api/payments/**"
                         ).authenticated()
 
-                        // ==================== EVERYTHING ELSE ====================
+                        // =================================================
+                        // EVERYTHING ELSE
+                        // =================================================
 
                         .anyRequest().authenticated()
                 );
