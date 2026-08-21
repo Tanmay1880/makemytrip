@@ -7,7 +7,7 @@ import { validateLogin } from '@/utils/validators';
 
 export default function Login() {
   const { login } = useAuth();
-  const { toast } = useToast();
+  const toast = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from || '/';
@@ -33,15 +33,18 @@ export default function Login() {
     setSubmitting(true);
     setServerError('');
     try {
-      const result = await login(form);
-      toast.success(`Welcome back, ${result.user.firstName}!`);
-      navigate(from);
+        const result = await login(form);
+        toast.success(`Welcome back, ${result.user.email}!`);
+        navigate(from);
     } catch (err) {
-      const msg = err?.response?.data?.message || 'Login failed. Please check your credentials.';
-      setServerError(msg);
-      toast.error(msg);
+        const msg =
+            err?.response?.data?.message ||
+            'Login failed. Please check your credentials.';
+
+        setServerError(msg);
+        toast.error(msg);
     } finally {
-      setSubmitting(false);
+        setSubmitting(false);
     }
   };
 

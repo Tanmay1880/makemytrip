@@ -12,7 +12,13 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/');
+
+    // Make sure authentication data is gone
+    localStorage.removeItem('jwt_token');
+    localStorage.removeItem('user_data');
+
+    // Fully reload the app as a logged-out user
+    window.location.replace('/login');
   };
 
   const navLinks = [
