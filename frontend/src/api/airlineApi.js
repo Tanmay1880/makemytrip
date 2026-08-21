@@ -2,77 +2,75 @@ import api from './axiosConfig';
 
 // ============================================================
 // AIRLINE API (admin)
-// ------------------------------------------------------------
-// NOTE: Adjust the endpoint paths and field names below to
-// match your Spring Boot REST API contract.
 // ============================================================
-
-import { mockAirlines } from './mockData';
-
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 /**
  * Get all airlines.
+ *
+ * Backend:
+ * GET /api/airlines
  */
 export async function getAllAirlines() {
-  // TODO: Replace with your actual endpoint
-  // const response = await api.get('/airlines');
-  // return response.data;
+  const response = await api.get('/api/airlines');
 
-  // --- Placeholder ---
-  await delay(400);
-  return [...mockAirlines];
+  return response.data;
+}
+
+/**
+ * Get airline by ID.
+ *
+ * Backend:
+ * GET /api/airlines/{id}
+ */
+export async function getAirlineById(airlineId) {
+  const response = await api.get(
+    `/api/airlines/${airlineId}`
+  );
+
+  return response.data;
 }
 
 /**
  * Create an airline.
- * @param {object} airlineData
+ *
+ * Backend:
+ * POST /api/airlines
  */
 export async function createAirline(airlineData) {
-  // TODO: Replace with your actual endpoint
-  // const response = await api.post('/airlines', airlineData);
-  // return response.data;
+  const response = await api.post(
+    '/api/airlines',
+    airlineData
+  );
 
-  // --- Placeholder ---
-  await delay(400);
-  const newAirline = { id: Date.now(), ...airlineData };
-  mockAirlines.push(newAirline);
-  return newAirline;
+  return response.data;
 }
 
 /**
  * Update an airline.
- * @param {string|number} airlineId
- * @param {object} airlineData
+ *
+ * Backend:
+ * PUT /api/airlines/{id}
  */
-export async function updateAirline(airlineId, airlineData) {
-  // TODO: Replace with your actual endpoint
-  // const response = await api.put(`/airlines/${airlineId}`, airlineData);
-  // return response.data;
+export async function updateAirline(
+  airlineId,
+  airlineData
+) {
+  const response = await api.put(
+    `/api/airlines/${airlineId}`,
+    airlineData
+  );
 
-  // --- Placeholder ---
-  await delay(400);
-  const idx = mockAirlines.findIndex((a) => a.id === airlineId);
-  if (idx !== -1) {
-    mockAirlines[idx] = { ...mockAirlines[idx], ...airlineData, id: airlineId };
-    return mockAirlines[idx];
-  }
-  throw { response: { status: 404, data: { message: 'Airline not found' } } };
+  return response.data;
 }
 
 /**
  * Delete an airline.
- * @param {string|number} airlineId
+ *
+ * Backend:
+ * DELETE /api/airlines/{id}
  */
 export async function deleteAirline(airlineId) {
-  // TODO: Replace with your actual endpoint
-  // await api.delete(`/airlines/${airlineId}`);
-
-  // --- Placeholder ---
-  await delay(300);
-  const idx = mockAirlines.findIndex((a) => a.id === airlineId);
-  if (idx !== -1) mockAirlines.splice(idx, 1);
-  return { success: true };
+  await api.delete(
+    `/api/airlines/${airlineId}`
+  );
 }
