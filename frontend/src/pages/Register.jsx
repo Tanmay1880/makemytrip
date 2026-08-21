@@ -7,7 +7,7 @@ import { validateRegister } from '@/utils/validators';
 
 export default function Register() {
   const { register } = useAuth();
-  const { toast } = useToast();
+  const toast = useToast();
   const navigate = useNavigate();
 
   const [form, setForm] = useState({

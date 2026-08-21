@@ -39,10 +39,14 @@ export function getCurrentUser() {
 }
 
 // ==================== REGISTER ====================
-// We'll connect this after login is working.
-
 export async function register(payload) {
-  const response = await api.post('/api/users', payload);
+  const response = await api.post('/api/users', {
+    firstName: payload.firstName,
+    lastName: payload.lastName,
+    email: payload.email,
+    phoneNumber: payload.phone,
+    password: payload.password,
+  });
 
   return response.data;
 }

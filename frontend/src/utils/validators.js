@@ -11,7 +11,7 @@ export function isPhone(phone) {
 }
 
 export function isStrongPassword(password) {
-  return password && password.length >= 6;
+  return password && password.length >= 8;
 }
 
 export function validateLogin({ email, password }) {
@@ -31,7 +31,7 @@ export function validateRegister({ firstName, lastName, email, phone, password, 
   if (!phone) errors.phone = 'Phone is required';
   else if (!isPhone(phone)) errors.phone = 'Invalid phone number';
   if (!password) errors.password = 'Password is required';
-  else if (!isStrongPassword(password)) errors.password = 'Password must be at least 6 characters';
+  else if (!isStrongPassword(password)) errors.password = 'Password must be at least 8 characters';
   if (!confirmPassword) errors.confirmPassword = 'Please confirm your password';
   else if (password !== confirmPassword) errors.confirmPassword = 'Passwords do not match';
   return errors;

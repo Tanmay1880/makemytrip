@@ -3,65 +3,74 @@ import { useNavigate } from 'react-router-dom';
 import {
   Search,
   Calendar,
-  ArrowRight,
   Plane,
   PlaneTakeoff,
   PlaneLanding,
   TrendingUp,
+  ArrowRight,
 } from 'lucide-react';
 
 import { getAllAirports } from '@/api/airportApi';
 
+// ============================================================
+// POPULAR DESTINATIONS
+// These must match airports that actually exist in the database.
+// ============================================================
+
 const popularDestinations = [
   {
-    code: 'CDG',
-    city: 'Paris',
-    country: 'France',
+    code: 'DEL',
+    city: 'Delhi',
+    country: 'India',
+    description: 'Indira Gandhi International Airport',
     image:
-      'https://images.pexels.com/photos/32444545/pexels-photo-32444545.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-    price: 390,
+      'https://commons.wikimedia.org/wiki/Special:FilePath/Delhi_India_Gate.jpg',
   },
   {
-    code: 'JFK',
-    city: 'New York',
-    country: 'USA',
+    code: 'BOM',
+    city: 'Mumbai',
+    country: 'India',
+    description: 'Chhatrapati Shivaji Maharaj International Airport',
     image:
-      'https://images.pexels.com/photos/8569166/pexels-photo-8569166.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-    price: 450,
+      'https://s1.dmcdn.net/v/K9ZjU1P5FwdYQgNEc/x1080',
   },
   {
-    code: 'DXB',
-    city: 'Dubai',
-    country: 'UAE',
+    code: 'BLR',
+    city: 'Bengaluru',
+    country: 'India',
+    description: 'Kempegowda International Airport',
     image:
-      'https://images.pexels.com/photos/19664340/pexels-photo-19664340.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-    price: 620,
+      'https://images.ctfassets.net/bx9krvy0u3sx/3LSoyEz8WrwSg9KQ84Rgp4/655666c28639fb66310f90e677250e46/Bengaluru_aerial_shot.png?fm=webp&q=80&w=1600',
   },
   {
-    code: 'LHR',
-    city: 'London',
-    country: 'UK',
+    code: 'HYD',
+    city: 'Hyderabad',
+    country: 'India',
+    description: 'Rajiv Gandhi International Airport',
     image:
-      'https://images.pexels.com/photos/16771428/pexels-photo-16771428.png?auto=compress&cs=tinysrgb&h=650&w=940',
-    price: 420,
+      'https://staybook.in/_next/image?q=100&url=https%3A%2F%2Fimages.staybook.in%2Fthings-to-do%2Fcharminar-fast-entry-pass-flexible-timings%2F5.jpg&w=1920',
   },
   {
-    code: 'SIN',
-    city: 'Singapore',
-    country: 'Singapore',
+    code: 'MAA',
+    city: 'Chennai',
+    country: 'India',
+    description: 'Chennai International Airport',
     image:
-      'https://images.pexels.com/photos/15480459/pexels-photo-15480459.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-    price: 550,
+      'https://www.agoda.com/wp-content/uploads/2024/05/Marina-Beach-Bay-of-bengal-view-from-light-house.jpg',
   },
   {
-    code: 'HND',
-    city: 'Tokyo',
-    country: 'Japan',
+    code: 'CCU',
+    city: 'Kolkata',
+    country: 'India',
+    description: 'Netaji Subhas Chandra Bose International Airport',
     image:
-      'https://images.pexels.com/photos/15275312/pexels-photo-15275312.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-    price: 590,
+      'https://commons.wikimedia.org/wiki/Special:FilePath/The_Victoria_Memorial_Hall_Kolkata_West_Bengal_India.jpg',
   },
 ];
+
+// ============================================================
+// HOME
+// ============================================================
 
 export default function Home() {
   const navigate = useNavigate();
@@ -74,7 +83,9 @@ export default function Home() {
 
   const [errors, setErrors] = useState({});
 
-  // ==================== AIRPORTS ====================
+  // ============================================================
+  // AIRPORTS
+  // ============================================================
 
   const [airports, setAirports] = useState([]);
   const [loadingAirports, setLoadingAirports] = useState(true);
@@ -84,7 +95,8 @@ export default function Home() {
     const loadAirports = async () => {
       try {
         const data = await getAllAirports();
-        setAirports(data || []);
+
+        setAirports(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error('Failed to load airports:', error);
         setAirportError('Unable to load airports');
@@ -96,21 +108,29 @@ export default function Home() {
     loadAirports();
   }, []);
 
-  // ==================== FORM ====================
+  // ============================================================
+  // FORM
+  // ============================================================
 
   const handleChange = (e) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
 
-    if (errors[e.target.name]) {
-      setErrors({
-        ...errors,
-        [e.target.name]: undefined,
-      });
+    setForm((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
+
+    if (errors[name]) {
+      setErrors((previous) => ({
+        ...previous,
+        [name]: undefined,
+      }));
     }
   };
+
+  // ============================================================
+  // SEARCH
+  // ============================================================
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -148,41 +168,77 @@ export default function Home() {
     navigate(`/flights?${params.toString()}`);
   };
 
-  // ==================== POPULAR DESTINATION ====================
+  // ============================================================
+  // POPULAR DESTINATION
+  // ============================================================
 
   const selectDestination = (destination) => {
-    const newForm = {
-      ...form,
+    // Make sure selected destination exists in our airport data.
+    const exists = airports.some(
+      (airport) => airport.code === destination.code
+    );
+
+    if (!exists) {
+      console.error(
+        `Airport ${destination.code} does not exist in the database`
+      );
+      return;
+    }
+
+    // Set destination in search form.
+    setForm((previous) => ({
+      ...previous,
       to: destination.code,
-    };
+    }));
 
-    setForm(newForm);
+    // Clear destination validation error.
+    setErrors((previous) => ({
+      ...previous,
+      to: undefined,
+    }));
 
+    // If origin and date are already selected,
+    // immediately search for real flights.
     if (
-      newForm.from &&
-      newForm.from !== destination.code &&
-      newForm.date
+      form.from &&
+      form.from !== destination.code &&
+      form.date
     ) {
       const params = new URLSearchParams({
-        from: newForm.from,
+        from: form.from,
         to: destination.code,
-        date: newForm.date,
+        date: form.date,
       });
 
       navigate(`/flights?${params.toString()}`);
+      return;
     }
+
+    // Otherwise bring the user back to the search form
+    // so they can select origin/date.
+    document
+      .getElementById('flight-search')
+      ?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
   };
 
-  // ==================== UI ====================
+  // ============================================================
+  // UI
+  // ============================================================
 
   return (
     <div>
 
-      {/* ==================== HERO ==================== */}
+      {/* ========================================================
+          HERO
+      ======================================================== */}
 
       <section className="relative">
 
         <div className="absolute inset-0">
+
           <img
             src="https://images.pexels.com/photos/18136344/pexels-photo-18136344.jpeg?auto=compress&cs=tinysrgb&h=650&w=940"
             alt="Sky view from airplane"
@@ -190,11 +246,13 @@ export default function Home() {
           />
 
           <div className="absolute inset-0 bg-gradient-to-b from-primary-900/70 via-primary-800/60 to-gray-900/80" />
+
         </div>
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-28">
 
           <div className="text-center mb-10">
+
             <h1 className="text-4xl md:text-5xl font-bold text-white tracking-tight">
               Fly anywhere, anytime
             </h1>
@@ -202,24 +260,31 @@ export default function Home() {
             <p className="text-lg text-primary-100 mt-3">
               Search and book flights from hundreds of airlines worldwide
             </p>
+
           </div>
 
-          {/* ==================== SEARCH CARD ==================== */}
+          {/* ====================================================
+              SEARCH CARD
+          ==================================================== */}
 
           <form
+            id="flight-search"
             onSubmit={handleSearch}
             className="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl p-6 md:p-8"
           >
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-              {/* ==================== FROM ==================== */}
+              {/* FROM */}
 
               <div>
 
                 <label className="label flex items-center gap-1.5">
+
                   <PlaneTakeoff className="w-4 h-4 text-primary-600" />
+
                   From
+
                 </label>
 
                 <select
@@ -239,6 +304,7 @@ export default function Home() {
                   </option>
 
                   {airports.map((airport) => (
+
                     <option
                       key={airport.id}
                       value={airport.code}
@@ -248,6 +314,7 @@ export default function Home() {
                         ? `, ${airport.country}`
                         : ''}
                     </option>
+
                   ))}
 
                 </select>
@@ -260,13 +327,16 @@ export default function Home() {
 
               </div>
 
-              {/* ==================== TO ==================== */}
+              {/* TO */}
 
               <div>
 
                 <label className="label flex items-center gap-1.5">
+
                   <PlaneLanding className="w-4 h-4 text-primary-600" />
+
                   To
+
                 </label>
 
                 <select
@@ -286,6 +356,7 @@ export default function Home() {
                   </option>
 
                   {airports.map((airport) => (
+
                     <option
                       key={airport.id}
                       value={airport.code}
@@ -295,6 +366,7 @@ export default function Home() {
                         ? `, ${airport.country}`
                         : ''}
                     </option>
+
                   ))}
 
                 </select>
@@ -307,13 +379,16 @@ export default function Home() {
 
               </div>
 
-              {/* ==================== DATE ==================== */}
+              {/* DATE */}
 
               <div>
 
                 <label className="label flex items-center gap-1.5">
+
                   <Calendar className="w-4 h-4 text-primary-600" />
+
                   Departure Date
+
                 </label>
 
                 <input
@@ -337,7 +412,7 @@ export default function Home() {
 
             </div>
 
-            {/* Airport error */}
+            {/* AIRPORT ERROR */}
 
             {airportError && (
               <p className="text-sm text-error-500 mt-3">
@@ -345,13 +420,21 @@ export default function Home() {
               </p>
             )}
 
+            {/* SEARCH BUTTON */}
+
             <button
               type="submit"
-              disabled={loadingAirports || airports.length === 0}
+              disabled={
+                loadingAirports ||
+                airports.length === 0
+              }
               className="btn-primary w-full mt-6 py-3 text-base"
             >
+
               <Search className="w-5 h-5" />
+
               Search Flights
+
             </button>
 
           </form>
@@ -360,11 +443,13 @@ export default function Home() {
 
       </section>
 
-      {/* ==================== POPULAR DESTINATIONS ==================== */}
+      {/* ========================================================
+          POPULAR DESTINATIONS
+      ======================================================== */}
 
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
 
-        <div className="flex items-center gap-2 mb-8">
+        <div className="flex items-center gap-2 mb-7">
 
           <TrendingUp className="w-5 h-5 text-accent-500" />
 
@@ -374,56 +459,58 @@ export default function Home() {
 
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
 
-          {popularDestinations.map((dest) => (
+          {popularDestinations.map((destination) => (
 
             <button
-              key={dest.code}
-              onClick={() => selectDestination(dest)}
-              className="group text-left rounded-xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-lg transition-all"
+              key={destination.code}
+              type="button"
+              onClick={() =>
+                selectDestination(destination)
+              }
+              className="group text-left bg-white rounded-xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-md hover:border-primary-300 transition-all"
             >
 
-              <div className="relative h-52 overflow-hidden">
+              <div className="relative h-40 overflow-hidden">
 
                 <img
-                  src={dest.image}
-                  alt={dest.city}
+                  src={destination.image}
+                  alt={destination.city}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
 
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
 
                 <div className="absolute bottom-0 left-0 right-0 p-4">
 
                   <h3 className="text-xl font-bold text-white">
-                    {dest.city}
+                    {destination.city}
                   </h3>
 
                   <p className="text-sm text-gray-200">
-                    {dest.country}
+                    {destination.code} · {destination.country}
                   </p>
 
                 </div>
 
               </div>
 
-              <div className="p-4 flex items-center justify-between bg-white">
+              <div className="px-4 py-3 flex items-center justify-between">
 
                 <div>
-                  <p className="text-xs text-gray-400">
-                    From
+
+                  <p className="text-sm text-gray-500">
+                    {destination.description}
                   </p>
 
-                  <p className="text-lg font-bold text-primary-700">
-                    ${dest.price}
+                  <p className="text-sm font-medium text-primary-600 mt-1">
+                    Search flights
                   </p>
+
                 </div>
 
-                <span className="flex items-center gap-1 text-sm font-medium text-primary-600 group-hover:gap-2 transition-all">
-                  Book now
-                  <ArrowRight className="w-4 h-4" />
-                </span>
+                <ArrowRight className="w-5 h-5 text-primary-600 group-hover:translate-x-1 transition-transform" />
 
               </div>
 
@@ -435,7 +522,9 @@ export default function Home() {
 
       </section>
 
-      {/* ==================== FEATURES ==================== */}
+      {/* ========================================================
+          FEATURES
+      ======================================================== */}
 
       <section className="bg-gray-900 py-16">
 

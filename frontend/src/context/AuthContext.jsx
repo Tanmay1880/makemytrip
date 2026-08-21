@@ -2,7 +2,14 @@
 // AUTH CONTEXT
 // ============================================================
 
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+} from 'react';
+
 import * as authApi from '@/api/authApi';
 
 const AuthContext = createContext(null);
@@ -13,6 +20,7 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const stored = localStorage.getItem('user_data');
+
     if (stored) {
       try {
         setUser(JSON.parse(stored));
@@ -21,19 +29,48 @@ export function AuthProvider({ children }) {
         localStorage.removeItem('jwt_token');
       }
     }
+
     setLoading(false);
   }, []);
 
   const login = useCallback(async (credentials) => {
     const result = await authApi.login(credentials);
+
     setUser(result.user);
+
     return result;
   }, []);
 
   const register = useCallback(async (payload) => {
-    const result = await authApi.register(payload);
-    setUser(result.user);
-    return result;
+    // Create the account
+    const registeredUser = await authApi.register(payload);
+
+    // Automatically log the newly created user in
+    const loginResult = await authApi.login({
+      email: payload.email,
+      password: payload.password,
+    });
+
+    // Combine login information with registration information
+    const user = {
+      ...loginResult.user,
+      firstName: registeredUser.firstName,
+      lastName: registeredUser.lastName,
+      phoneNumber: registeredUser.phoneNumber,
+    };
+
+    // Store complete user information
+    localStorage.setItem(
+      'user_data',
+      JSON.stringify(user)
+    );
+
+    setUser(user);
+
+    return {
+      ...loginResult,
+      user,
+    };
   }, []);
 
   const logout = useCallback(async () => {
@@ -53,11 +90,21 @@ export function AuthProvider({ children }) {
     logout,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+
+  if (!ctx) {
+    throw new Error(
+      'useAuth must be used within AuthProvider'
+    );
+  }
+
   return ctx;
 }
