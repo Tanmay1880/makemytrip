@@ -1,36 +1,55 @@
 import api from './axiosConfig';
 
-// ==================== LOGIN ====================
+// ============================================================
+// LOGIN
+// ============================================================
 
 export async function login(credentials) {
   const response = await api.post('/api/auth/login', credentials);
 
   const data = response.data;
 
+  // Store JWT first so the next API request is authenticated.
+  localStorage.setItem('jwt_token', data.accessToken);
+
+  // Fetch complete user information.
+  const userResponse = await api.get(`/api/users/${data.userId}`);
+
+  const userData = userResponse.data;
+
   const user = {
-    id: data.userId,
-    email: data.email,
-    role: data.role,
+    id: userData.id,
+    firstName: userData.firstName,
+    lastName: userData.lastName,
+    email: userData.email,
+    phoneNumber: userData.phoneNumber,
+    role: userData.role,
+    active: userData.active,
   };
 
-  localStorage.setItem('jwt_token', data.accessToken);
-  localStorage.setItem('user_data', JSON.stringify(user));
+  localStorage.setItem(
+    'user_data',
+    JSON.stringify(user)
+  );
 
-  // Keep the structure expected by AuthContext/Login
   return {
     token: data.accessToken,
     user,
   };
 }
 
-// ==================== LOGOUT ====================
+// ============================================================
+// LOGOUT
+// ============================================================
 
 export function logout() {
   localStorage.removeItem('jwt_token');
   localStorage.removeItem('user_data');
 }
 
-// ==================== CURRENT USER ====================
+// ============================================================
+// CURRENT USER
+// ============================================================
 
 export function getCurrentUser() {
   const stored = localStorage.getItem('user_data');
@@ -38,7 +57,10 @@ export function getCurrentUser() {
   return stored ? JSON.parse(stored) : null;
 }
 
-// ==================== REGISTER ====================
+// ============================================================
+// REGISTER
+// ============================================================
+
 export async function register(payload) {
   const response = await api.post('/api/users', {
     firstName: payload.firstName,
